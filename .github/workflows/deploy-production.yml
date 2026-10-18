@@ -1,0 +1,189 @@
+﻿name: Deploy StaffNavi Production
+
+on:
+  push:
+    branches:
+      - main
+
+  # GitHub画面から手動実行も可能にする
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同時デプロイ防止
+concurrency:
+  group: staffnav-production
+  cancel-in-progress: false
+
+env:
+  PROJECT_PATH: ./StaffNavi/StaffNavi.csproj
+
+  DOTNET_VERSION: 10.0.x
+
+  DEPLOY_PATH: C:\inetpub\www_staffnav
+
+jobs:
+
+  # =========================================================
+  # BUILD
+  # GitHub側でビルド
+  # =========================================================
+  build:
+    name: Build
+    runs-on: windows-latest
+
+    steps:
+
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore "${{ env.PROJECT_PATH }}"
+
+      - name: Publish
+        run: >
+          dotnet publish "${{ env.PROJECT_PATH }}"
+          --configuration Release
+          --no-restore
+          --output "${{ github.workspace }}\publish"
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: staffnav-publish
+          path: ${{ github.workspace }}\publish
+          retention-days: 3
+
+
+  # =========================================================
+  # DEPLOY
+  # IISサーバ上のSelf-hosted Runnerで実行（ALCと同じサーバ）
+  # =========================================================
+  deploy:
+    name: Deploy to IIS
+    needs: build
+
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - alc-iis
+
+    steps:
+
+      - name: Prepare staging directory
+        shell: powershell
+        run: |
+          $staging = "${{ runner.temp }}\staffnav_publish"
+
+          if (Test-Path $staging) {
+              Remove-Item $staging -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+
+
+      - name: Download publish artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: staffnav-publish
+          path: ${{ runner.temp }}\staffnav_publish
+
+
+      - name: Deploy to IIS
+        shell: powershell
+        run: |
+
+          $ErrorActionPreference = "Stop"
+
+          $source  = "${{ runner.temp }}\staffnav_publish"
+          $target  = "${{ env.DEPLOY_PATH }}"
+          $offline = Join-Path $target "app_offline.htm"
+
+          Write-Host "========================================="
+          Write-Host " Source : $source"
+          Write-Host " Target : $target"
+          Write-Host "========================================="
+
+          # -------------------------------------------------
+          # 配置先がなければ作成し、IISのアプリから書き込めるようにする
+          # （デモデータを App_Data に JSON で保存するため）
+          # -------------------------------------------------
+          if (-not (Test-Path $target)) {
+              New-Item -ItemType Directory -Path $target -Force | Out-Null
+              Write-Host "Created: $target"
+          }
+
+          icacls $target /grant "IIS_IUSRS:(OI)(CI)M" /T /C /Q | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+              throw "icacls failed. ExitCode=$LASTEXITCODE"
+          }
+
+          try {
+
+              # -------------------------------------------------
+              # ASP.NET Coreアプリを停止
+              # -------------------------------------------------
+              Set-Content `
+                  -Path $offline `
+                  -Value "<html><body>System maintenance...</body></html>" `
+                  -Encoding UTF8
+
+              Start-Sleep -Seconds 3
+
+              # -------------------------------------------------
+              # Publish成果物をIISへコピー
+              #
+              # appsettings.Production.json は
+              # サーバ固有設定として保持
+              # -------------------------------------------------
+
+              robocopy `
+                  $source `
+                  $target `
+                  /MIR `
+                  /R:3 `
+                  /W:3 `
+                  /NFL `
+                  /NDL `
+                  /NP `
+                  /XF `
+                  app_offline.htm `
+                  appsettings.Production.json `
+                  /XD `
+                  App_Data `
+                  (Join-Path $target ".keys") `
+                  (Join-Path $target "logs")
+              # App_Data（デモデータ。なければ起動時に初期データを作成）・.keys・logs はサーバー側のデータのため、/MIR で消さない。
+
+              $robocopyExitCode = $LASTEXITCODE
+
+              # robocopy は 0～7 が正常扱い
+              if ($robocopyExitCode -ge 8) {
+                  throw "Robocopy failed. ExitCode=$robocopyExitCode"
+              }
+
+              Write-Host "Deployment completed."
+
+          }
+          finally {
+
+              # -------------------------------------------------
+              # アプリ再開
+              # -------------------------------------------------
+
+              if (Test-Path $offline) {
+                  Remove-Item $offline -Force
+              }
+
+          }
+
+          # robocopy の 1～7（コピーあり等）が $LASTEXITCODE に残り、ステップが失敗扱いになるのを防ぐ。
+          # 8以上は上の throw で失敗になる。
+          exit 0
