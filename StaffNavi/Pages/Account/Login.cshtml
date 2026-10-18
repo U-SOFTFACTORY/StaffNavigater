@@ -1,0 +1,46 @@
+@page
+@model StaffNavi.Pages.Account.LoginModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>ログイン - GS Manager 労務資料作成支援</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="auth-body">
+    <div class="auth-card">
+        <div class="auth-brand">
+            @Icons.Svg("drop", 34)
+            <span>
+                <span class="brand-name">GS Manager</span>
+                <span class="brand-sub">労務資料作成支援システム</span>
+            </span>
+        </div>
+        @if (Model.Error != null)
+        {
+            <div class="alert alert-danger py-2">@Model.Error</div>
+        }
+        <form method="post">
+            <input type="hidden" asp-for="ReturnUrl" />
+            <div class="mb-3">
+                <label class="form-label" asp-for="LoginId">ログインID</label>
+                <input class="form-control" asp-for="LoginId" autocomplete="username" required autofocus />
+            </div>
+            <div class="mb-4">
+                <label class="form-label" asp-for="Password">パスワード</label>
+                <input class="form-control" asp-for="Password" type="password" autocomplete="current-password" required />
+            </div>
+            <button class="btn btn-primary w-100 py-2" type="submit">ログイン</button>
+        </form>
+        <p class="text-muted small mt-4 mb-0">
+            本環境はお打ち合わせでのご確認用のデモ環境です。表示されるデータはすべてダミーデータです。
+        </p>
+    </div>
+</body>
+</html>

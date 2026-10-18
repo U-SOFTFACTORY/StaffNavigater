@@ -1,0 +1,86 @@
+@page
+@model StaffNavi.Pages.Settings.IndexModel
+@{
+    ViewData["Title"] = "設定";
+    ViewData["Nav"] = "settings";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">設定</h1>
+        <div class="page-sub">帳票に表示する事業所名と、労働時間・賃金の計算条件を設定します</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <form class="panel" method="post" asp-page-handler="Save">
+            <div class="panel-title"><h2>基本・計算設定</h2></div>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label" asp-for="Input.CompanyName">事業所名（帳票に表示）</label>
+                    <input class="form-control" asp-for="Input.CompanyName" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.PayDayOfMonth">支払日（末締・翌月○日払い）</label>
+                    <input class="form-control" asp-for="Input.PayDayOfMonth" min="1" max="31" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.DailyStandardMinutes">1日の法定労働時間（分）</label>
+                    <input class="form-control" asp-for="Input.DailyStandardMinutes" min="1" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.PaidLeaveMinutes">有給休暇1日の時間（分）</label>
+                    <input class="form-control" asp-for="Input.PaidLeaveMinutes" min="0" />
+                </div>
+                <div class="col-md-4"></div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.OvertimeRate">普通残の支給率</label>
+                    <input class="form-control" asp-for="Input.OvertimeRate" step="0.01" min="0" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.HolidayRate">休出の支給率</label>
+                    <input class="form-control" asp-for="Input.HolidayRate" step="0.01" min="0" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" asp-for="Input.NightRate">深夜の割増率（深夜＝1＋割増率、深夜残＝普通残＋割増率）</label>
+                    <input class="form-control" asp-for="Input.NightRate" step="0.01" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.HealthInsuranceRate">健康保険料率</label>
+                    <input class="form-control" asp-for="Input.HealthInsuranceRate" step="0.0001" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.CareInsuranceRate">介護保険料率（40～64歳）</label>
+                    <input class="form-control" asp-for="Input.CareInsuranceRate" step="0.0001" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.PensionRate">厚生年金保険料率</label>
+                    <input class="form-control" asp-for="Input.PensionRate" step="0.0001" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.EmploymentInsuranceRate">雇用保険料率</label>
+                    <input class="form-control" asp-for="Input.EmploymentInsuranceRate" step="0.0001" min="0" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.IncomeTaxRate">所得税（簡易税率・扶養1人につき1割減）</label>
+                    <input class="form-control" asp-for="Input.IncomeTaxRate" step="0.00001" min="0" />
+                </div>
+            </div>
+            <div class="note-box warn mt-3">
+                @Icons.Svg("alert", 18)
+                <div>デモ用の簡易計算の設定です。本開発では、就業規則・給与規程に合わせて計算方法を決定します。</div>
+            </div>
+            <button class="btn btn-primary px-4 mt-3" type="submit">@Icons.Svg("check", 16) 保存</button>
+        </form>
+    </div>
+    <div class="col-xl-4">
+        <div class="panel">
+            <div class="panel-title"><h2>デモデータ</h2></div>
+            <p class="small text-muted">取込データ・補正履歴・操作ログ・設定をすべて削除し、デモ開始時の状態（2026年7月・8月分を取込済み）に戻します。</p>
+            <form method="post" asp-page-handler="Reset" data-confirm="デモデータを初期状態に戻します。取込データ・補正履歴・操作ログはすべて削除されます。よろしいですか？">
+                <button class="btn btn-outline-danger" type="submit">@Icons.Svg("undo", 16) デモデータを初期化</button>
+            </form>
+        </div>
+    </div>
+</div>

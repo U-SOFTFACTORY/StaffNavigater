@@ -1,0 +1,49 @@
+﻿@page
+@{
+    ViewData["Title"] = "操作ガイド";
+    ViewData["Nav"] = "guide";
+    (string Icon, string Title, string Body, string Page, string Link)[] steps =
+    [
+        ("download", "サンプルCSVを用意する", $"CSV取込画面から「{DemoSeeder.SampleAttendanceFileName}」をダウンロードします（スタッフナビゲーターから出力した勤怠実績CSVを想定したダミーデータです）。", "/Import/Index", "CSV取込を開く"),
+        ("upload", "CSVを取り込む", "ファイルを選択して読み込むと、取込件数・エラー・要確認データ（打刻漏れ・休憩不足など）が表示されます。内容を確認して取込を確定します。", "/Import/Index", "CSV取込を開く"),
+        ("calendar", "勤務表で確認・補正する", "要確認の日（赤色の行）の「補正」ボタンから、根拠資料を確認したうえで勤務内容を補正します。補正理由は必須です。", "/Timesheet/Index", "勤務表を開く"),
+        ("history", "補正履歴を確認する", "補正前・補正後の差分、理由、補正者、日時を一覧で確認できます。誤った補正は取消できますが、記録は削除されません。", "/Corrections/Index", "補正履歴を開く"),
+        ("ledger", "賃金台帳を確認する", "補正後の勤務実績をもとに、スタッフナビゲーターと同じ様式（1年分・月別）で労働時間・支給額・控除額を集計します。", "/Ledger/Index", "賃金台帳を開く"),
+        ("printer", "提出用資料を出力する", "勤務表（出勤簿）・賃金台帳・勤務実績集計表を、印刷またはPDFで出力します。補正箇所には※印を付けられます。", "/Output/Index", "提出資料出力を開く"),
+        ("database", "スタッフナビゲーターに戻す", "補正後の勤怠を、スタッフナビゲーターの「勤怠データCSVファイル取込」形式で出力します。スタッフナビゲーター側で手動で取り込みます。", "/Output/Index", "提出資料出力を開く"),
+    ];
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">操作ガイド</h1>
+        <div class="page-sub">デモ画面の基本的な操作の流れです</div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>システム構成</h2></div>
+    <partial name="_DataFlow" />
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>操作の流れ</h2></div>
+    <div class="row g-3">
+        @for (var i = 0; i < steps.Length; i++)
+        {
+            var step = steps[i];
+            <div class="col-md-6 col-xl-4">
+                <div class="tile h-100">
+                    <span class="tile-head"><span class="pill pill-blue">STEP @(i + 1)</span> @Icons.Svg(step.Icon, 20, "blue") @step.Title</span>
+                    <span class="small my-2">@step.Body</span>
+                    <a class="small mt-auto" asp-page="@step.Page">@step.Link →</a>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="note-box warn">
+    @Icons.Svg("alert", 18)
+    <div>本画面はお打ち合わせでのご確認用のデモです。画面構成・機能・計算方法は現時点の想定であり、実際の仕様はお打ち合わせでのご意見を踏まえて決定します。</div>
+</div>

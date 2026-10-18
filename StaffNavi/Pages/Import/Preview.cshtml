@@ -1,0 +1,57 @@
+﻿@page
+@model StaffNavi.Pages.Import.PreviewModel
+@{
+    ViewData["Title"] = "取込内容の確認";
+    ViewData["Nav"] = "import";
+    var p = Model.Pending;
+    var count = p.Kind == ImportKind.Staff ? p.Data.Staff.Count : p.Data.Records.Count;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">取込内容の確認</h1>
+        <div class="page-sub">内容を確認し、問題がなければ取込を確定してください</div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="row g-3 align-items-center">
+        <div class="col-lg-8">
+            <div class="stat-chips">
+                <div class="stat-chip"><span class="label">ファイル名</span><span class="value">@p.FileName</span></div>
+                <div class="stat-chip"><span class="label">種類</span><span class="value">@(p.Kind?.Label() ?? "判別不可")</span></div>
+                @if (p.TargetMonth != null)
+                {
+                    <div class="stat-chip"><span class="label">対象月</span><span class="value">@Fmt.Month(p.TargetMonth)</span></div>
+                }
+                <div class="stat-chip"><span class="label">取込件数</span><span class="value">@count 件</span></div>
+                <div class="stat-chip"><span class="label">エラー</span><span class="value @(p.ErrorCount > 0 ? "text-danger" : "")">@p.ErrorCount 件</span></div>
+                <div class="stat-chip"><span class="label">要確認</span><span class="value @(p.WarningCount > 0 ? "text-warning" : "")">@p.WarningCount 件</span></div>
+                <div class="stat-chip"><span class="label">文字コード</span><span class="value">@p.Encoding</span></div>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <form method="post" class="d-inline">
+                <input type="hidden" name="token" value="@p.Token" />
+                <button class="btn btn-outline-secondary" asp-page-handler="Cancel" type="submit">中止</button>
+                <button class="btn btn-primary px-4" asp-page-handler="Commit" type="submit" disabled="@(!p.CanCommit)">@Icons.Svg("check", 16) 取込を確定</button>
+            </form>
+        </div>
+    </div>
+
+    @foreach (var notice in p.Notices)
+    {
+        <div class="note-box warn mt-3">@Icons.Svg("alert", 18)<div>@notice</div></div>
+    }
+    @if (p.ErrorCount > 0)
+    {
+        <div class="note-box warn mt-3">@Icons.Svg("alert", 18)<div>エラーがあるため取込できません。スタッフナビゲーター側で出力内容を確認し、再度CSVを出力してください。</div></div>
+    }
+    else if (p.WarningCount > 0)
+    {
+        <div class="note-box mt-3">@Icons.Svg("help", 18)<div>要確認データは取込後、勤務表画面で根拠資料を確認のうえ補正できます（補正内容は履歴として記録されます）。</div></div>
+    }
+    <div class="small text-muted mt-3">ファイルのハッシュ値（SHA-256）：<code>@p.Sha256</code></div>
+</div>
+
+<partial name="_BatchContent" model="p.Data" />

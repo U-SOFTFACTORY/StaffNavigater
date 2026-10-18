@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/css/print.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="toolbar">
+        <strong>@ViewData["Title"]</strong>
+        <span class="toolbar-note">印刷画面で送信先を「PDFに保存」にするとPDFで保存できます（用紙：A4）</span>
+        <button type="button" onclick="window.print()">印刷／PDF保存</button>
+        <button type="button" class="secondary" onclick="window.close()">閉じる</button>
+    </div>
+    @RenderBody()
+</body>
+</html>

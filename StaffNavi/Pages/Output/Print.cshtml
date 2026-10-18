@@ -1,0 +1,239 @@
+@page
+@model StaffNavi.Pages.Output.PrintModel
+@{
+    Layout = "_PrintLayout";
+    ViewData["Title"] = Model.DocumentTitle;
+    var s = Model.Settings;
+    var printed = $"出力日時：{Fmt.DateTime(Model.PrintedAt)}　出力者：{Model.PrintedBy}";
+    var markNote = "※ 取込データ（スタッフナビゲーターから出力したCSV）から補正した箇所です。補正前の内容・理由・補正者は補正履歴に記録されています。";
+}
+
+@if (Model.Type == "ledger")
+{
+    <style>@@page { size: A4 landscape; }</style>
+}
+
+@if (Model.Type == "timesheet")
+{
+    foreach (var staff in Model.MonthStaff)
+    {
+        var view = Model.View!;
+        var sum = staff.Summary;
+        var marked = Model.Mark && sum.CorrectionCount > 0;
+        <section class="sheet">
+            <h1>出勤簿</h1>
+            <table class="head">
+                <tr>
+                    <th>事業所</th><td>@s.CompanyName　@staff.Staff.Site</td>
+                    <th>対象期間</th><td>@view.FirstDay.ToString("yyyy年M月d日")～@view.LastDay.ToString("M月d日")</td>
+                </tr>
+                <tr>
+                    <th>氏名</th><td>@staff.Staff.Name（@staff.Staff.Kana）</td>
+                    <th>スタッフ番号／雇用区分</th><td>@staff.Staff.EmployeeNo ／ @staff.Staff.EmploymentType</td>
+                </tr>
+            </table>
+            <table class="grid">
+                <thead>
+                    <tr>
+                        <th>日</th><th>曜</th><th>勤務区分</th><th>始業</th><th>終業</th><th>休憩</th>
+                        <th>労働時間</th><th>普通残</th><th>深夜</th><th>深夜残</th><th>休出</th><th>備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in staff.Days)
+                    {
+                        var e = d.Effective;
+                        var working = e?.Kind.IsWorking() == true;
+                        var cls = d.Date.DayOfWeek == DayOfWeek.Sunday ? "sun" : d.Date.DayOfWeek == DayOfWeek.Saturday ? "sat" : "";
+                        <tr class="@cls">
+                            <td class="center">@d.Date.Day</td>
+                            <td class="center">@Fmt.Weekday(d.Date)</td>
+                            <td class="center">@(e?.Kind.Label() ?? "")</td>
+                            <td class="center">@Fmt.Time(e?.Start)</td>
+                            <td class="center">@Fmt.Time(e?.End)</td>
+                            <td class="num">@(working ? Fmt.Hours(e!.BreakMinutes) : "")</td>
+                            <td class="num">@(working ? Fmt.Hours(d.Calc.WorkMinutes) : "")</td>
+                            <td class="num">@(d.Calc.OvertimeMinutes > 0 ? Fmt.Hours(d.Calc.OvertimeMinutes) : "")</td>
+                            <td class="num">@(d.Calc.NightMinutes > 0 ? Fmt.Hours(d.Calc.NightMinutes) : "")</td>
+                            <td class="num">@(d.Calc.NightOvertimeMinutes > 0 ? Fmt.Hours(d.Calc.NightOvertimeMinutes) : "")</td>
+                            <td class="num">@(d.Calc.HolidayMinutes > 0 ? Fmt.Hours(d.Calc.HolidayMinutes) : "")</td>
+                            <td>@(Model.Mark && d.IsCorrected ? "※" : "")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3">合計</th>
+                        <td colspan="3">出勤 @(sum.WorkDays)日／休出 @(sum.HolidayWorkDays)日／有給 @(sum.PaidLeaveDays)日／欠勤 @(sum.AbsenceDays)日</td>
+                        <td class="num">@Fmt.Hours(sum.WorkMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.OvertimeMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.NightMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.NightOvertimeMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.HolidayMinutes)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+            @if (marked)
+            {
+                <div class="notes">@markNote</div>
+            }
+            <div class="foot">
+                <span>@printed</span>
+                <span>取込元：@view.Batch.FileName（@Fmt.DateTime(view.Batch.ImportedAt) 取込）／補正反映：@(sum.CorrectionCount)件</span>
+            </div>
+        </section>
+    }
+}
+else if (Model.Type == "summary")
+{
+    var view = Model.View!;
+    var anyCorrected = Model.MonthStaff.Any(x => x.Summary.CorrectionCount > 0);
+    <section class="sheet">
+        <h1>勤務実績集計表</h1>
+        <table class="head">
+            <tr>
+                <th>事業所</th><td>@s.CompanyName　@Model.SiteLabel</td>
+                <th>対象期間</th><td>@view.FirstDay.ToString("yyyy年M月d日")～@view.LastDay.ToString("M月d日")</td>
+            </tr>
+        </table>
+        <table class="grid">
+            <thead>
+                <tr>
+                    <th>スタッフ番号</th><th>氏名</th><th>拠点</th><th>雇用区分</th><th>出勤</th><th>休出</th><th>有給</th><th>欠勤</th>
+                    <th>労働時間</th><th>普通残</th><th>深夜</th><th>深夜残</th><th>休出時間</th><th>備考</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var x in Model.MonthStaff)
+                {
+                    var sum = x.Summary;
+                    <tr>
+                        <td>@x.Staff.EmployeeNo</td>
+                        <td>@x.Staff.Name</td>
+                        <td>@x.Staff.Site</td>
+                        <td>@x.Staff.EmploymentType</td>
+                        <td class="num">@sum.WorkDays</td>
+                        <td class="num">@sum.HolidayWorkDays</td>
+                        <td class="num">@sum.PaidLeaveDays</td>
+                        <td class="num">@sum.AbsenceDays</td>
+                        <td class="num">@Fmt.Hours(sum.WorkMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.OvertimeMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.NightMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.NightOvertimeMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.HolidayMinutes)</td>
+                        <td>@(Model.Mark && sum.CorrectionCount > 0 ? $"※補正{sum.CorrectionCount}件" : "")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4">合計（@(Model.MonthStaff.Count)名）</th>
+                    <td class="num">@Model.MonthStaff.Sum(x => x.Summary.WorkDays)</td>
+                    <td class="num">@Model.MonthStaff.Sum(x => x.Summary.HolidayWorkDays)</td>
+                    <td class="num">@Model.MonthStaff.Sum(x => x.Summary.PaidLeaveDays)</td>
+                    <td class="num">@Model.MonthStaff.Sum(x => x.Summary.AbsenceDays)</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.WorkMinutes))</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.OvertimeMinutes))</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.NightMinutes))</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.NightOvertimeMinutes))</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.HolidayMinutes))</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+        @if (Model.Mark && anyCorrected)
+        {
+            <div class="notes">@markNote</div>
+        }
+        <div class="foot">
+            <span>@printed</span>
+            <span>取込元：@view.Batch.FileName（@Fmt.DateTime(view.Batch.ImportedAt) 取込）</span>
+        </div>
+    </section>
+}
+else
+{
+    var pageNo = 0;
+    foreach (var (staff, columns) in Model.Ledgers)
+    {
+        pageNo++;
+        var byMonth = columns.Where(c => c.Staff != null).ToDictionary(c => int.Parse(c.Month[5..]));
+        var months = Enumerable.Range(1, 12).ToList();
+        var staffMonths = byMonth.Values.Select(c => c.Staff!).ToList();
+        var marked = Model.Mark && staffMonths.Any(x => x.Summary.CorrectionCount > 0);
+        var previousGroup = 0;
+        <section class="sheet landscape ledger">
+            <div class="ledger-title">
+                <span></span>
+                <h1>賃金台帳</h1>
+                <span class="ledger-stamp">@Model.PrintedAt.ToString("yy/MM/dd HH:mm")　PAGE: @pageNo</span>
+            </div>
+            <table class="ledger-head">
+                <tr>
+                    <td>ｽﾀｯﾌNo：@staff.EmployeeNo.PadLeft(8, '0')</td>
+                    <td>性別：@staff.Gender</td>
+                    <td>税区分：甲</td>
+                    <td>入社日：@staff.HireDate.ToString("yyyy/MM/dd")</td>
+                    <td>拠点：@staff.Site</td>
+                    <td class="right"></td>
+                </tr>
+                <tr>
+                    <td>ｽﾀｯﾌ名：@staff.Name</td>
+                    <td colspan="2">生年月日：@(staff.BirthDate?.ToString("yyyy/MM/dd") ?? "")</td>
+                    <td>退社日：</td>
+                    <td></td>
+                    <td class="right">@s.CompanyName</td>
+                </tr>
+            </table>
+            <table class="grid ledger-grid">
+                <thead>
+                    <tr>
+                        <th>@(Model.Year)年1月～@(Model.Year)年12月給与</th>
+                        @foreach (var m in months)
+                        {
+                            <th>@(m)月@(Model.Mark && byMonth.TryGetValue(m, out var c) && c.Staff!.Summary.CorrectionCount > 0 ? "※" : "")</th>
+                        }
+                        <th>給与計</th>
+                    </tr>
+                    <tr>
+                        <th class="label">支払日<br />対象期間</th>
+                        @foreach (var m in months)
+                        {
+                            <td class="center">
+                                @if (byMonth.TryGetValue(m, out var c))
+                                {
+                                    @c.View.PayDate.ToString("M/d")<br />@($"{c.View.FirstDay:M/d}～{c.View.LastDay:M/d}")
+                                }
+                            </td>
+                        }
+                        <td></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in StaffNavigatorFormat.LedgerItems)
+                    {
+                        var cls = (item.Group != previousGroup && previousGroup != 0 ? "group-start " : "") + (item.Strong ? "strong" : "");
+                        previousGroup = item.Group;
+                        <tr class="@cls">
+                            <th>@item.Label</th>
+                            @foreach (var m in months)
+                            {
+                                <td class="num">@(byMonth.TryGetValue(m, out var c) ? StaffNavigatorFormat.FormatValue(item, item.Value(c.Staff!)) : "")</td>
+                            }
+                            <td class="num">@(staffMonths.Count > 0 ? StaffNavigatorFormat.FormatValue(item, StaffNavigatorFormat.Total(item, staffMonths)) : "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (marked)
+            {
+                <div class="notes">※ 補正を反映した月です。補正前の内容・理由・補正者は補正履歴に記録されています。</div>
+            }
+            <div class="foot">
+                <span>@printed</span>
+                <span>取込元：@string.Join("、", columns.Select(c => c.View.Batch.FileName))</span>
+            </div>
+        </section>
+    }
+}

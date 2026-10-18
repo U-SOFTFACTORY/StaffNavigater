@@ -1,0 +1,83 @@
+@page { size: A4 portrait; margin: 12mm 10mm; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+  color: #111;
+  background: #e9edf2;
+  font-size: 10.5px;
+}
+
+.toolbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  background: #17325a; color: #fff; padding: 10px 20px; font-size: 13px;
+}
+.toolbar-note { opacity: .8; font-size: 12px; margin-right: auto; }
+.toolbar button { background: #1f6fe5; color: #fff; border: 0; border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; }
+.toolbar button.secondary { background: transparent; border: 1px solid rgba(255, 255, 255, .5); }
+
+.sheet {
+  background: #fff;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 16px auto;
+  padding: 12mm 10mm;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+  display: flex;
+  flex-direction: column;
+}
+.sheet.landscape { width: 297mm; min-height: 210mm; }
+
+h1 { font-size: 18px; text-align: center; letter-spacing: .3em; margin: 0 0 10px; }
+
+.head { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.head th, .head td { border: 1px solid #555; padding: 4px 6px; text-align: left; }
+.head th { background: #f0f2f5; font-weight: normal; width: 13%; white-space: nowrap; }
+
+.grid { width: 100%; border-collapse: collapse; }
+.grid th, .grid td { border: 1px solid #555; padding: 2.5px 4px; }
+.grid thead th { background: #f0f2f5; font-weight: normal; white-space: nowrap; }
+.grid .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grid .center { text-align: center; }
+.grid tfoot td, .grid tfoot th { background: #f7f8fa; font-weight: bold; }
+.grid tr.strong th, .grid tr.strong td { font-weight: bold; background: #f7f8fa; }
+.grid tr.sun td:first-child, .grid tr.sun td:nth-child(2) { color: #c00; }
+.grid tr.sat td:first-child, .grid tr.sat td:nth-child(2) { color: #0645ad; }
+.grid tbody th { text-align: left; font-weight: normal; background: #fafbfc; white-space: nowrap; }
+
+.mark { font-weight: bold; }
+
+/* 賃金台帳（スタッフナビゲーターの賃金台帳サンプルに合わせた様式） */
+.sheet.ledger { padding: 8mm 8mm; font-size: 8px; }
+.ledger-title { display: flex; align-items: baseline; justify-content: space-between; }
+.ledger-title > span { flex: 1; }
+.ledger-title h1 { margin: 0 0 4px; font-size: 15px; }
+.ledger-stamp { text-align: right; font-size: 8px; }
+.ledger-head { width: 100%; border-collapse: collapse; margin-bottom: 3px; }
+.ledger-head td { padding: 1px 4px; white-space: nowrap; }
+.ledger-head .right { text-align: right; }
+.ledger-grid th, .ledger-grid td { padding: 0 4px; line-height: 1.35; border-color: #888; border-top: 0; border-bottom: 0; }
+.ledger-grid thead th, .ledger-grid thead td { border-bottom: 1px solid #555; border-top: 1px solid #555; }
+.ledger-grid thead .label { text-align: left; font-weight: normal; }
+.ledger-grid tbody th { width: 92px; }
+.ledger-grid tr.group-start > * { border-top: 1px solid #555; }
+.ledger-grid tbody tr:last-child > * { border-bottom: 1px solid #555; }
+
+.foot { margin-top: auto; padding-top: 8px; border-top: 1px solid #999; font-size: 9px; color: #333; display: flex; justify-content: space-between; gap: 12px; }
+.notes { margin-top: 6px; font-size: 9.5px; }
+
+@media print {
+  body { background: #fff; }
+  .toolbar { display: none; }
+  .sheet { margin: 0; box-shadow: none; padding: 0; width: auto; min-height: calc(297mm - 24mm); page-break-after: always; break-after: page; }
+  .sheet.landscape { min-height: calc(210mm - 24mm); }
+  .sheet:last-child { page-break-after: auto; break-after: auto; }
+}
+
+@media screen and (max-width: 840px) {
+  .sheet, .sheet.landscape { width: auto; margin: 8px; min-height: 0; }
+  .toolbar-note { display: none; }
+}

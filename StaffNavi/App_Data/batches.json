@@ -1,0 +1,38 @@
+[
+  {
+    "Id": "B20260805090500-637ef6",
+    "Kind": "Staff",
+    "FileName": "スタッフ情報_20260805.csv",
+    "Sha256": "C9CB563159A264929B8EA2C4517260F1C1E2AE6B99146BCB6E6CD7CE7D075EDD",
+    "Encoding": "Shift_JIS",
+    "ImportedAt": "2026-08-05T09:05:00+09:00",
+    "ImportedBy": "山田 太郎",
+    "TargetMonth": null,
+    "RowCount": 18,
+    "WarningCount": 0
+  },
+  {
+    "Id": "B20260805091200-7bf73e",
+    "Kind": "Attendance",
+    "FileName": "勤怠実績_202607.csv",
+    "Sha256": "F42D6765F20496E079C3A41AF2AD4816231BB1CF27E3D8FE884C68C299B9A717",
+    "Encoding": "Shift_JIS",
+    "ImportedAt": "2026-08-05T09:12:00+09:00",
+    "ImportedBy": "山田 太郎",
+    "TargetMonth": "2026-07",
+    "RowCount": 558,
+    "WarningCount": 3
+  },
+  {
+    "Id": "B20260904100300-c435e6",
+    "Kind": "Attendance",
+    "FileName": "勤怠実績_202608.csv",
+    "Sha256": "85EE8AA378B7D1D16FFD186A58A7B08F86877FC5950A6C280B2286D298435287",
+    "Encoding": "Shift_JIS",
+    "ImportedAt": "2026-09-04T10:03:00+09:00",
+    "ImportedBy": "山田 太郎",
+    "TargetMonth": "2026-08",
+    "RowCount": 558,
+    "WarningCount": 3
+  }
+]

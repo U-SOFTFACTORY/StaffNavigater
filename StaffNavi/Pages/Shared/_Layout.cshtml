@@ -1,0 +1,130 @@
+@using Microsoft.Extensions.Options
+@using System.Security.Claims
+@inject LaborService Labor
+@inject IOptionsMonitor<DemoOptions> Demo
+@{
+    var nav = ViewData["Nav"] as string ?? "";
+    var latest = Labor.GetMonth(null);
+    var alertCount = latest?.WarningCount ?? 0;
+    var expiresAt = Demo.CurrentValue.ExpiresAt;
+    var role = User.FindFirstValue(ClaimTypes.Role);
+    (string Key, string Page, string Icon, string Label)[] menu =
+    [
+        ("dashboard", "/Index", "home", "ダッシュボード"),
+        ("import", "/Import/Index", "upload", "CSV取込"),
+        ("timesheet", "/Timesheet/Index", "calendar", "勤務表"),
+        ("ledger", "/Ledger/Index", "ledger", "賃金台帳"),
+        ("corrections", "/Corrections/Index", "history", "補正履歴"),
+        ("output", "/Output/Index", "pdf", "提出資料出力"),
+        ("logs", "/Logs/Index", "list", "操作ログ"),
+    ];
+}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@ViewData["Title"] - GS Manager 労務資料作成支援</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="app-body">
+    <div class="app">
+        <aside class="sidebar" id="sidebar">
+            <a class="brand" asp-page="/Index">
+                <span class="brand-mark">@Icons.Svg("drop", 26)</span>
+                <span>
+                    <span class="brand-name">GS Manager</span>
+                    <span class="brand-sub">労務資料作成支援システム</span>
+                </span>
+            </a>
+            <nav class="side-nav">
+                @foreach (var item in menu)
+                {
+                    <a class="side-link @(nav == item.Key ? "active" : "")" asp-page="@item.Page">
+                        @Icons.Svg(item.Icon)
+                        <span>@item.Label</span>
+                        @if (item.Key == "timesheet" && alertCount > 0)
+                        {
+                            <span class="side-badge">@alertCount</span>
+                        }
+                    </a>
+                }
+            </nav>
+            <div class="side-bottom">
+                <a class="side-link @(nav == "settings" ? "active" : "")" asp-page="/Settings/Index">@Icons.Svg("settings")<span>設定</span></a>
+                <a class="side-link @(nav == "guide" ? "active" : "")" asp-page="/Guide">@Icons.Svg("help")<span>操作ガイド</span></a>
+            </div>
+        </aside>
+        <div class="sidebar-backdrop" data-sidebar-close></div>
+
+        <div class="main">
+            <div class="demo-banner">
+                デモ環境：表示されているデータはすべてダミーデータです。実際の個人情報は入力しないでください。
+                @if (expiresAt != null)
+                {
+                    <span class="ms-1">（公開期限 @expiresAt.Value.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy/MM/dd")）</span>
+                }
+            </div>
+            <header class="topbar">
+                <button class="icon-btn d-lg-none" type="button" data-sidebar-open aria-label="メニュー">@Icons.Svg("list", 20)</button>
+                <form class="topbar-search" method="get" asp-page="/Timesheet/Index">
+                    @Icons.Svg("search", 16)
+                    <input type="search" name="q" placeholder="スタッフ名・スタッフ番号・拠点で検索..." aria-label="検索" />
+                </form>
+                <div class="topbar-right">
+                    <a class="icon-btn position-relative" asp-page="/Index" asp-fragment="alerts" title="要確認データ">
+                        @Icons.Svg("bell", 20)
+                        @if (alertCount > 0)
+                        {
+                            <span class="bell-badge">@alertCount</span>
+                        }
+                    </a>
+                    <div class="dropdown">
+                        <button class="user-menu" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="avatar">@Icons.Svg("user", 18)</span>
+                            <span class="user-text">
+                                <span class="user-company">@latest?.Settings.CompanyName</span>
+                                <span class="user-name">@User.Identity?.Name（@role）</span>
+                            </span>
+                            @Icons.Svg("chevron-down", 16)
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                            <form method="post" asp-page="/Account/Logout">
+                                <button class="dropdown-item" type="submit">@Icons.Svg("logout", 16) ログアウト</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <main class="content">
+                @if (TempData["Message"] is string message)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        @Icons.Svg("check-circle", 18) @message
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="閉じる"></button>
+                    </div>
+                }
+                @if (TempData["Error"] is string error)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        @Icons.Svg("alert", 18) @error
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="閉じる"></button>
+                    </div>
+                }
+                @RenderBody()
+            </main>
+            <footer class="app-footer">
+                GS Manager 労務資料作成支援システム（デモ版） &copy; U-SOFTFACTORY
+            </footer>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

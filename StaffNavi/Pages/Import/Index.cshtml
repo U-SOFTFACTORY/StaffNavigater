@@ -1,0 +1,87 @@
+﻿@page
+@model StaffNavi.Pages.Import.IndexModel
+@{
+    ViewData["Title"] = "CSV取込";
+    ViewData["Nav"] = "import";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">CSV取込</h1>
+        <div class="page-sub">スタッフナビゲーターから出力したCSVを取り込みます</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="panel h-100">
+            <div class="panel-title"><h2>ファイルを選択</h2></div>
+            <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <input class="form-control form-control-lg" type="file" name="file" accept=".csv" required />
+                    <div class="form-text">勤怠実績CSV／スタッフ情報CSVを自動で判別します。文字コードはShift_JIS・UTF-8のどちらにも対応しています。</div>
+                </div>
+                <button class="btn btn-primary px-4" type="submit">@Icons.Svg("upload", 16) 読み込んで内容を確認</button>
+            </form>
+            <div class="note-box mt-4">
+                @Icons.Svg("help", 18)
+                <div>
+                    この時点ではまだ登録されません。次の画面で、取込件数・エラー・要確認データを確認してから取込を確定します。
+                    <div class="mt-2">
+                        デモ用のサンプル：
+                        <a asp-page-handler="Sample" asp-route-kind="attendance">@Icons.Svg("download", 14) @DemoSeeder.SampleAttendanceFileName</a>
+                        <span class="mx-1">／</span>
+                        <a asp-page-handler="Sample" asp-route-kind="staff">@Icons.Svg("download", 14) スタッフ情報_サンプル.csv</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="panel h-100">
+            <div class="panel-title"><h2>取込できるCSV</h2></div>
+            <h3 class="h6 fw-bold">勤怠実績CSV（1ファイル1か月分）</h3>
+            <p class="small text-muted mb-3">@string.Join("、", CsvImportService.AttendanceHeaders)</p>
+            <h3 class="h6 fw-bold">スタッフ情報CSV</h3>
+            <p class="small text-muted mb-3">@string.Join("、", CsvImportService.StaffHeaders)</p>
+            <div class="note-box">
+                @Icons.Svg("shield", 18)
+                <div>取り込んだデータは原本として保持し、変更しません。補正は補正履歴として別に記録されます。</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="panel mt-3">
+    <div class="panel-title"><h2>取込履歴</h2></div>
+    <div class="table-wrap">
+        <table class="table table-app">
+            <thead>
+                <tr><th>取込日時</th><th>種類</th><th>対象月</th><th>ファイル名</th><th class="num">件数</th><th class="num">警告</th><th>文字コード</th><th>取込者</th><th>使用状況</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var b in Model.Batches)
+                {
+                    <tr>
+                        <td class="text-nowrap">@Fmt.DateTime(b.ImportedAt)</td>
+                        <td><span class="pill @(b.Kind == ImportKind.Attendance ? "pill-blue" : "pill-gray")">@b.Kind.Label()</span></td>
+                        <td>@(b.TargetMonth != null ? Fmt.Month(b.TargetMonth) : "-")</td>
+                        <td>@b.FileName</td>
+                        <td class="num">@b.RowCount</td>
+                        <td class="num">@if (b.WarningCount > 0) { <span class="pill pill-orange">@b.WarningCount</span> } else { <span>0</span> }</td>
+                        <td>@b.Encoding</td>
+                        <td>@b.ImportedBy</td>
+                        <td>
+                            @if (b.Kind == ImportKind.Attendance)
+                            {
+                                if (Model.EffectiveIds.Contains(b.Id)) { <span class="pill pill-green">使用中</span> }
+                                else { <span class="pill pill-gray">新しい取込あり</span> }
+                            }
+                        </td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-secondary" asp-page="/Import/Detail" asp-route-id="@b.Id">詳細</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

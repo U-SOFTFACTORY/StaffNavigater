@@ -1,0 +1,159 @@
+@page
+@model StaffNavi.Pages.Corrections.IndexModel
+@{
+    ViewData["Title"] = "補正履歴";
+    ViewData["Nav"] = "corrections";
+    (string Label, Func<AttendanceValues?, string> Get)[] fields =
+    [
+        ("勤務区分", v => v?.Kind.Label() ?? "データなし"),
+        ("出勤時刻", v => v?.Kind.IsWorking() == true ? (Fmt.Time(v.Start) is { Length: > 0 } s ? s : "未入力") : "-"),
+        ("退勤時刻", v => v?.Kind.IsWorking() == true ? (Fmt.Time(v.End) is { Length: > 0 } e ? e : "未入力") : "-"),
+        ("休憩", v => v?.Kind.IsWorking() == true ? $"{v.BreakMinutes}分" : "-"),
+    ];
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">補正履歴</h1>
+        <div class="page-sub">誰が・いつ・何を・なぜ補正したかを確認できます。補正は削除できず、取消も履歴として残ります</div>
+    </div>
+</div>
+
+<div class="panel">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-sm-4 col-lg-3">
+            <label class="form-label small text-muted mb-1">対象月</label>
+            <select class="form-select" name="month">
+                <option value="">すべて</option>
+                @foreach (var m in Model.Months)
+                {
+                    <option value="@m" selected="@(m == Model.Month)">@Fmt.Month(m)</option>
+                }
+            </select>
+        </div>
+        <div class="col-sm-4 col-lg-3">
+            <label class="form-label small text-muted mb-1">スタッフ</label>
+            <select class="form-select" name="emp">
+                <option value="">すべて</option>
+                @foreach (var s in Model.Staff)
+                {
+                    <option value="@s.EmployeeNo" selected="@(s.EmployeeNo == Model.Emp)">@s.Name（@s.Site）</option>
+                }
+            </select>
+        </div>
+        <div class="col-sm-4 col-lg-2">
+            <label class="form-label small text-muted mb-1">状態</label>
+            <select class="form-select" name="status">
+                <option value="">すべて</option>
+                <option value="active" selected="@(Model.Status == "active")">有効</option>
+                <option value="revoked" selected="@(Model.Status == "revoked")">取消済み</option>
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <button class="btn btn-primary w-100" type="submit">@Icons.Svg("search", 16) 絞り込み</button>
+        </div>
+    </form>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>補正一覧（@Model.Items.Count 件）</h2></div>
+    @if (Model.Items.Count == 0)
+    {
+        <p class="text-muted mb-0">該当する補正履歴はありません。</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-app">
+                <thead>
+                    <tr><th>補正日時</th><th>スタッフ</th><th>勤務日</th><th>補正内容</th><th>補正理由・根拠資料</th><th>補正者</th><th>状態</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Items)
+                    {
+                        <tr class="@(c.Revoked ? "text-muted" : "")">
+                            <td class="text-nowrap">@Fmt.DateTime(c.CorrectedAt)</td>
+                            <td class="text-nowrap">@c.StaffName<div class="small text-muted">@c.EmployeeNo</div></td>
+                            <td class="text-nowrap"><a asp-page="/Timesheet/Index" asp-route-month="@c.Month" asp-route-emp="@c.EmployeeNo" asp-fragment="d@(c.Date.Day)">@c.Date.ToString("yyyy/MM/dd")</a></td>
+                            <td>
+                                <table class="table table-sm table-bordered diff-table mb-0 bg-white">
+                                    <tr><th></th><th class="fw-normal text-muted">補正前</th><th class="fw-normal text-muted">補正後</th></tr>
+                                    @foreach (var (label, get) in fields)
+                                    {
+                                        var before = get(c.Before);
+                                        var after = get(c.After);
+                                        <tr>
+                                            <th class="fw-normal text-muted text-nowrap">@label</th>
+                                            <td>@before</td>
+                                            <td class="@(before != after ? "diff-changed" : "")">@after</td>
+                                        </tr>
+                                    }
+                                </table>
+                            </td>
+                            <td class="small" style="min-width: 220px">
+                                @c.Reason
+                                @if (c.Evidence != null)
+                                {
+                                    <div class="text-muted mt-1">根拠：@c.Evidence</div>
+                                }
+                                @if (c.Revoked)
+                                {
+                                    <div class="mt-2 p-2 rounded bg-light">
+                                        <strong>取消：</strong>@c.RevokeReason
+                                        <div class="text-muted">@c.RevokedBy @(c.RevokedAt != null ? Fmt.DateTime(c.RevokedAt.Value) : "")</div>
+                                    </div>
+                                }
+                            </td>
+                            <td class="text-nowrap">@c.CorrectedBy</td>
+                            <td>@if (c.Revoked) { <span class="pill pill-gray">取消済み</span> } else { <span class="pill pill-green">有効</span> }</td>
+                            <td class="text-end">
+                                @if (!c.Revoked)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger text-nowrap" data-bs-toggle="modal" data-bs-target="#revokeModal"
+                                            data-id="@c.Id" data-label="@c.StaffName @c.Date.ToString("yyyy/MM/dd")">
+                                        @Icons.Svg("undo", 14) 取消
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="modal fade" id="revokeModal" tabindex="-1" aria-labelledby="revokeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" method="post" asp-page-handler="Revoke">
+            <input type="hidden" name="id" />
+            <input type="hidden" name="month" value="@Model.Month" />
+            <input type="hidden" name="emp" value="@Model.Emp" />
+            <input type="hidden" name="status" value="@Model.Status" />
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="revokeModalLabel">補正の取消 <small class="text-muted" data-field="label"></small></h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">取消理由 <span class="text-danger">*</span></label>
+                <textarea class="form-control" name="revokeReason" rows="3" required></textarea>
+                <div class="form-text">取消後は、その前の内容（直前の補正、または取込時の原本）に戻ります。補正の記録は削除されません。</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">キャンセル</button>
+                <button type="submit" class="btn btn-danger">取消する</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('revokeModal').addEventListener('show.bs.modal', function (e) {
+            var form = this.querySelector('form');
+            form.querySelector('[name=id]').value = e.relatedTarget.dataset.id;
+            form.querySelector('[name=revokeReason]').value = '';
+            this.querySelector('[data-field=label]').textContent = e.relatedTarget.dataset.label;
+        });
+    </script>
+}

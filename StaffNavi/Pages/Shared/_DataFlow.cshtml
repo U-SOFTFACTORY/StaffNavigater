@@ -1,0 +1,23 @@
+<div class="flow">
+    <div class="flow-box master">
+        @Icons.Svg("database", 26)
+        <strong>スタッフナビゲーター</strong>
+        <span>スタッフ・勤怠・給与等の正データ</span>
+    </div>
+    <div class="flow-arrow">@Icons.Svg("arrow-right", 22)CSV出力</div>
+    <div class="flow-box">
+        @Icons.Svg("upload", 26)
+        <strong>手動でCSV取込</strong>
+        <span>取込データは原本として保持</span>
+    </div>
+    <div class="flow-arrow">@Icons.Svg("arrow-right", 22)</div>
+    <div class="flow-box">
+        @Icons.Svg("monitor", 26)
+        <strong>労務資料作成支援（本システム）</strong>
+        <span>勤務表・賃金台帳の作成／補正履歴管理</span>
+    </div>
+</div>
+<div class="note-box mt-3">
+    @Icons.Svg("shield", 18)
+    <div>本システムで行った補正は、本システム内の補正履歴として記録されます。<strong>スタッフナビゲーターの正データには自動では反映されません</strong>（API等による自動連携は行いません）。補正後の勤怠をスタッフナビゲーターに戻す場合は、スタッフナビゲーターの取込形式で出力したCSVを手動で取り込みます。</div>
+</div>

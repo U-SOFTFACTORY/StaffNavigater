@@ -1,0 +1,42 @@
+@page
+@model StaffNavi.Pages.Import.DetailModel
+@{
+    ViewData["Title"] = "取込データ詳細";
+    ViewData["Nav"] = "import";
+    var b = Model.Batch;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">取込データ詳細</h1>
+        <div class="page-sub">取込時点の原本データです（変更されません）</div>
+    </div>
+    <a class="btn btn-outline-secondary" asp-page="/Import/Index">取込履歴へ戻る</a>
+</div>
+
+<div class="panel">
+    <div class="stat-chips">
+        <div class="stat-chip"><span class="label">ファイル名</span><span class="value">@b.FileName</span></div>
+        <div class="stat-chip"><span class="label">種類</span><span class="value">@b.Kind.Label()</span></div>
+        @if (b.TargetMonth != null)
+        {
+            <div class="stat-chip"><span class="label">対象月</span><span class="value">@Fmt.Month(b.TargetMonth)</span></div>
+        }
+        <div class="stat-chip"><span class="label">取込日時</span><span class="value">@Fmt.DateTime(b.ImportedAt)</span></div>
+        <div class="stat-chip"><span class="label">取込者</span><span class="value">@b.ImportedBy</span></div>
+        <div class="stat-chip"><span class="label">件数</span><span class="value">@b.RowCount 件</span></div>
+        @if (b.Kind == ImportKind.Attendance)
+        {
+            <div class="stat-chip"><span class="label">補正（有効）</span><span class="value">@Model.CorrectionCount 件</span></div>
+        }
+    </div>
+    <div class="small text-muted mt-3">ファイルのハッシュ値（SHA-256）：<code>@b.Sha256</code></div>
+    @if (b.Kind == ImportKind.Attendance)
+    {
+        <div class="mt-3">
+            <a class="btn btn-primary" asp-page="/Timesheet/Index" asp-route-month="@b.TargetMonth">@Icons.Svg("calendar", 16) 勤務表を開く</a>
+        </div>
+    }
+</div>
+
+<partial name="_BatchContent" model="Model.Data" />

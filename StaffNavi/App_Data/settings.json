@@ -1,0 +1,14 @@
+{
+  "CompanyName": "株式会社サンプルエナジー",
+  "PayDayOfMonth": 25,
+  "DailyStandardMinutes": 480,
+  "PaidLeaveMinutes": 480,
+  "OvertimeRate": 1.25,
+  "HolidayRate": 1.35,
+  "NightRate": 0.25,
+  "HealthInsuranceRate": 0.0499,
+  "CareInsuranceRate": 0.0080,
+  "PensionRate": 0.0915,
+  "EmploymentInsuranceRate": 0.0055,
+  "IncomeTaxRate": 0.03063
+}

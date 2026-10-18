@@ -1,0 +1,186 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "ダッシュボード";
+    ViewData["Nav"] = "dashboard";
+    var latest = Model.Latest;
+    var now = Clock.Now;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">ダッシュボード</h1>
+        <div class="page-sub">労務関連資料・労基署提出資料の作成状況</div>
+    </div>
+    <div class="text-muted">@now.ToString("yyyy年M月d日")（@Fmt.Weekday(DateOnly.FromDateTime(now.DateTime))）@now.ToString("HH:mm")</div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3">
+        <div class="kpi">
+            <span class="kpi-icon green">@Icons.Svg("users", 28)</span>
+            <div>
+                <div class="kpi-label">対象スタッフ数</div>
+                <div class="kpi-value">@Model.StaffCount<small>名</small></div>
+                <div class="kpi-note">@Model.SiteCount 拠点</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="kpi">
+            <span class="kpi-icon blue">@Icons.Svg("database", 28)</span>
+            <div>
+                <div class="kpi-label">取込済み勤怠データ</div>
+                <div class="kpi-value">@Model.MonthCount<small>か月分</small></div>
+                <div class="kpi-note">最新：@(latest != null ? Fmt.Month(latest.Month) : "なし")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="kpi">
+            <span class="kpi-icon orange">@Icons.Svg("history", 28)</span>
+            <div>
+                <div class="kpi-label">補正件数</div>
+                <div class="kpi-value">@Model.ActiveCorrectionCount<small>件</small></div>
+                <div class="kpi-note">取消済み @Model.RevokedCorrectionCount 件</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="kpi">
+            <span class="kpi-icon red">@Icons.Svg("alert", 28)</span>
+            <div>
+                <div class="kpi-label">要確認データ</div>
+                <div class="kpi-value">@Model.Alerts.Count<small>件</small></div>
+                <a class="kpi-note" href="#alerts">内容を確認 →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="panel h-100">
+            <div class="panel-title"><h2>労務資料作成</h2></div>
+            <p class="text-muted small">取り込んだ勤怠データから、各種労務資料を作成できます。</p>
+            <div class="tile-grid">
+                <a class="tile" asp-page="/Timesheet/Index">
+                    <span class="tile-head">@Icons.Svg("calendar", 22, "green") 勤務表</span>
+                    <span class="tile-sub">出勤簿・日別の勤務実績</span>
+                </a>
+                <a class="tile" asp-page="/Ledger/Index">
+                    <span class="tile-head">@Icons.Svg("ledger", 22, "blue") 賃金台帳</span>
+                    <span class="tile-sub">月別の支給・控除</span>
+                </a>
+                <a class="tile" asp-page="/Corrections/Index">
+                    <span class="tile-head">@Icons.Svg("history", 22, "purple") 補正履歴</span>
+                    <span class="tile-sub">補正前後・理由の確認</span>
+                </a>
+                <a class="tile" asp-page="/Output/Index">
+                    <span class="tile-head">@Icons.Svg("pdf", 22, "red") 提出用PDF</span>
+                    <span class="tile-sub">行政提出用に出力</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="panel h-100">
+            <div class="panel-title"><h2>データの流れ</h2></div>
+            <partial name="_DataFlow" />
+        </div>
+    </div>
+</div>
+
+<div class="panel mt-3" id="alerts">
+    <div class="panel-title">
+        <h2>要確認データ @(latest != null ? $"（{Fmt.Month(latest.Month)}）" : "")</h2>
+        <a class="more" asp-page="/Timesheet/Index">勤務表を開く →</a>
+    </div>
+    @if (Model.Alerts.Count == 0)
+    {
+        <p class="text-muted mb-0">@Icons.Svg("check-circle", 18) 要確認データはありません。</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-app">
+                <thead>
+                    <tr><th>スタッフ名</th><th>拠点</th><th>勤務日</th><th>勤務内容</th><th>確認内容</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var (staff, day) in Model.Alerts)
+                    {
+                        <tr>
+                            <td>@staff.Staff.Name</td>
+                            <td>@staff.Staff.Site</td>
+                            <td>@Fmt.Day(day.Date)</td>
+                            <td>@day.Effective?.Describe()</td>
+                            <td>
+                                @foreach (var warning in day.Warnings)
+                                {
+                                    <span class="pill pill-red me-1">@warning</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary" asp-page="/Timesheet/Index" asp-route-month="@latest!.Month" asp-route-emp="@staff.Staff.EmployeeNo" asp-fragment="d@(day.Date.Day)">確認・補正</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="row g-3 mt-0">
+    <div class="col-xl-7">
+        <div class="panel h-100">
+            <div class="panel-title">
+                <h2>最近の補正</h2>
+                <a class="more" asp-page="/Corrections/Index">すべて見る →</a>
+            </div>
+            <div class="table-wrap">
+                <table class="table table-app">
+                    <thead><tr><th>補正日時</th><th>スタッフ名</th><th>勤務日</th><th>補正内容</th><th>状態</th><th>補正者</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model.RecentCorrections)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@Fmt.DateTime(c.CorrectedAt)</td>
+                                <td>@c.StaffName</td>
+                                <td>@Fmt.Day(c.Date)</td>
+                                <td class="small">@c.Before?.Describe()<br />→ @c.After.Describe()</td>
+                                <td>@if (c.Revoked) { <span class="pill pill-gray">取消済み</span> } else { <span class="pill pill-green">有効</span> }</td>
+                                <td>@c.CorrectedBy</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="panel h-100">
+            <div class="panel-title">
+                <h2>取込履歴</h2>
+                <a class="more" asp-page="/Import/Index">CSV取込へ →</a>
+            </div>
+            <div class="table-wrap">
+                <table class="table table-app">
+                    <thead><tr><th>取込日時</th><th>種類</th><th>ファイル名</th><th class="num">件数</th></tr></thead>
+                    <tbody>
+                        @foreach (var b in Model.RecentBatches)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@Fmt.DateTime(b.ImportedAt)</td>
+                                <td><span class="pill @(b.Kind == ImportKind.Attendance ? "pill-blue" : "pill-gray")">@b.Kind.Label()</span></td>
+                                <td class="small"><a asp-page="/Import/Detail" asp-route-id="@b.Id">@b.FileName</a></td>
+                                <td class="num">@b.RowCount</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

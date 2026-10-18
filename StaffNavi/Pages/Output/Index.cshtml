@@ -1,0 +1,213 @@
+@page
+@model StaffNavi.Pages.Output.IndexModel
+@{
+    ViewData["Title"] = "提出資料出力";
+    ViewData["Nav"] = "output";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">提出資料出力</h1>
+        <div class="page-sub">労基署等への提出用に、勤務表・賃金台帳・勤務実績集計表を出力します</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="panel">
+            <div class="panel-title"><h2>出力条件</h2></div>
+            @if (Model.Months.Count == 0)
+            {
+                <p class="mb-0">勤怠データがまだ取り込まれていません。</p>
+            }
+            else
+            {
+                <form method="get" asp-page="/Output/Print" target="_blank" id="outputForm">
+                    <div class="mb-3">
+                        <label class="form-label">資料の種類</label>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="tile h-100">
+                                    <span class="tile-head"><input class="form-check-input mt-0" type="radio" name="type" value="timesheet" checked /> 勤務表（出勤簿）</span>
+                                    <span class="tile-sub">日別の始業・終業・休憩・労働時間</span>
+                                </label>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="tile h-100">
+                                    <span class="tile-head"><input class="form-check-input mt-0" type="radio" name="type" value="ledger" /> 賃金台帳</span>
+                                    <span class="tile-sub">スタッフナビゲーターと同じ様式（1年分・月別）</span>
+                                </label>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="tile h-100">
+                                    <span class="tile-head"><input class="form-check-input mt-0" type="radio" name="type" value="summary" /> 勤務実績集計表</span>
+                                    <span class="tile-sub">対象者全員の月間集計</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6" data-for="timesheet summary">
+                            <label class="form-label">対象月</label>
+                            <select class="form-select" name="month">
+                                @foreach (var m in Model.Months)
+                                {
+                                    <option value="@m">@Fmt.Month(m)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6" data-for="ledger" style="display: none">
+                            <label class="form-label">対象年</label>
+                            <select class="form-select" name="year" disabled>
+                                @foreach (var y in Model.Years)
+                                {
+                                    <option value="@y">@(y)年</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">拠点</label>
+                            <select class="form-select" name="site">
+                                <option value="">すべての拠点</option>
+                                @foreach (var s in Model.Sites)
+                                {
+                                    <option value="@s">@s</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6" data-for="timesheet ledger">
+                            <label class="form-label">対象者</label>
+                            <select class="form-select" name="emp">
+                                <option value="">選択した拠点の全員</option>
+                                @foreach (var s in Model.Staff)
+                                {
+                                    <option value="@s.EmployeeNo" data-site="@s.Site">@s.Name（@s.EmployeeNo・@s.Site）</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="mark" value="true" id="mark" checked />
+                                <input type="hidden" name="mark" value="false" />
+                                <label class="form-check-label" for="mark">補正した箇所に「※」印を付ける（補正履歴と照合できるようにする）</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button class="btn btn-primary px-4" type="submit">@Icons.Svg("printer", 16) 出力画面を開く</button>
+                        <span class="small text-muted ms-2">別タブで開きます。印刷画面から「PDFに保存」を選ぶとPDFで保存できます。</span>
+                    </div>
+                </form>
+            }
+        </div>
+
+        @if (Model.Months.Count > 0)
+        {
+            <div class="panel">
+                <div class="panel-title"><h2>スタッフナビゲーター連携用CSV</h2></div>
+                <p class="small text-muted">スタッフナビゲーターの取込・出力形式と同じ項目で出力します（Shift_JIS、1行目は項目名）。</p>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <form method="get" class="tile h-100">
+                            <input type="hidden" name="handler" value="SnAttendance" />
+                            <span class="tile-head">@Icons.Svg("upload", 18, "blue") 勤怠データCSV（取込用）</span>
+                            <span class="tile-sub mb-2">補正後の勤怠（日数・時間）を、スタッフナビゲーターの「給与管理｜勤怠データCSVファイル取込」で取り込める形式で出力します。</span>
+                            <div class="d-flex gap-2 mt-auto">
+                                <select class="form-select form-select-sm" name="month">
+                                    @foreach (var m in Model.Months)
+                                    {
+                                        <option value="@m">@Fmt.Month(m)</option>
+                                    }
+                                </select>
+                                <select class="form-select form-select-sm" name="site">
+                                    <option value="">全拠点</option>
+                                    @foreach (var s in Model.Sites)
+                                    {
+                                        <option value="@s">@s</option>
+                                    }
+                                </select>
+                                <button class="btn btn-sm btn-primary text-nowrap" type="submit">@Icons.Svg("download", 14) 出力</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <form method="get" class="tile h-100">
+                            <input type="hidden" name="handler" value="SnLedger" />
+                            <span class="tile-head">@Icons.Svg("ledger", 18, "blue") 賃金台帳CSV</span>
+                            <span class="tile-sub mb-2">全スタッフの賃金台帳を、スタッフナビゲーターの「賃金台帳CSVファイル出力形式」と同じ項目で出力します。</span>
+                            <div class="d-flex gap-2 mt-auto">
+                                <select class="form-select form-select-sm" name="year">
+                                    @foreach (var y in Model.Years)
+                                    {
+                                        <option value="@y">@(y)年</option>
+                                    }
+                                </select>
+                                <select class="form-select form-select-sm" name="site">
+                                    <option value="">全拠点</option>
+                                    @foreach (var s in Model.Sites)
+                                    {
+                                        <option value="@s">@s</option>
+                                    }
+                                </select>
+                                <button class="btn btn-sm btn-primary text-nowrap" type="submit">@Icons.Svg("download", 14) 出力</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="note-box mt-3">
+                    @Icons.Svg("help", 18)
+                    <div>勤怠データCSVをスタッフナビゲーターで取り込むときは、取込画面のオプション「1行目を無視する」をONにしてください。受注番号は「0」（スタッフの受注が1つ）で出力しています。</div>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-xl-5">
+        <div class="panel">
+            <div class="panel-title"><h2>最近の出力</h2></div>
+            @if (Model.RecentOutputs.Count == 0)
+            {
+                <p class="text-muted mb-0">出力履歴はありません。</p>
+            }
+            else
+            {
+                <ul class="list-unstyled mb-0">
+                    @foreach (var log in Model.RecentOutputs)
+                    {
+                        <li class="py-2 border-bottom small">
+                            <div class="text-muted">@Fmt.DateTime(log.At) ／ @log.User</div>
+                            @log.Message
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+        <div class="note-box mt-3">
+            @Icons.Svg("shield", 18)
+            <div>出力した資料には、出力日時・出力者・取込元データが記載されます。出力の記録は操作ログにも残ります。</div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var form = document.getElementById('outputForm');
+            if (!form) return;
+            function update() {
+                var type = form.querySelector('[name=type]:checked').value;
+                form.querySelectorAll('[data-for]').forEach(function (el) {
+                    var show = el.dataset.for.split(' ').indexOf(type) >= 0;
+                    el.style.display = show ? '' : 'none';
+                    el.querySelectorAll('select').forEach(function (s) { s.disabled = !show; });
+                });
+                var site = form.site.value;
+                Array.prototype.forEach.call(form.emp.options, function (o) {
+                    o.hidden = !!(site && o.dataset.site && o.dataset.site !== site);
+                });
+                if (form.emp.selectedOptions[0] && form.emp.selectedOptions[0].hidden) form.emp.value = '';
+            }
+            form.addEventListener('change', update);
+            update();
+        })();
+    </script>
+}

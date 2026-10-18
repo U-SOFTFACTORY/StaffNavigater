@@ -1,0 +1,142 @@
+[
+  {
+    "Id": "C20260806140700-94eabe",
+    "BatchId": "B20260805091200-7bf73e",
+    "Month": "2026-07",
+    "EmployeeNo": "1001",
+    "StaffName": "田中 健一",
+    "Date": "2026-07-08",
+    "Before": {
+      "Kind": "Work",
+      "Start": null,
+      "End": "15:00:00",
+      "BreakMinutes": 60
+    },
+    "After": {
+      "Kind": "Work",
+      "Start": "06:00:00",
+      "End": "15:00:00",
+      "BreakMinutes": 60
+    },
+    "Reason": "出勤打刻漏れ。シフト表および店舗責任者の確認により出勤時刻を確認",
+    "Evidence": "シフト表・店舗責任者確認",
+    "CorrectedBy": "鈴木 花子",
+    "CorrectedAt": "2026-08-06T14:07:00+09:00",
+    "Revoked": false,
+    "RevokedBy": null,
+    "RevokedAt": null,
+    "RevokeReason": null
+  },
+  {
+    "Id": "C20260806141400-14fe59",
+    "BatchId": "B20260805091200-7bf73e",
+    "Month": "2026-07",
+    "EmployeeNo": "1008",
+    "StaffName": "中村 拓也",
+    "Date": "2026-07-12",
+    "Before": {
+      "Kind": "Work",
+      "Start": "08:00:00",
+      "End": null,
+      "BreakMinutes": 60
+    },
+    "After": {
+      "Kind": "Work",
+      "Start": "08:00:00",
+      "End": "17:00:00",
+      "BreakMinutes": 60
+    },
+    "Reason": "退勤打刻漏れ。店舗日報および本人申告により退勤時刻を確認",
+    "Evidence": "店舗日報・本人申告書",
+    "CorrectedBy": "鈴木 花子",
+    "CorrectedAt": "2026-08-06T14:14:00+09:00",
+    "Revoked": false,
+    "RevokedBy": null,
+    "RevokedAt": null,
+    "RevokeReason": null
+  },
+  {
+    "Id": "C20260806142100-2ba5e7",
+    "BatchId": "B20260805091200-7bf73e",
+    "Month": "2026-07",
+    "EmployeeNo": "1013",
+    "StaffName": "松本 恵",
+    "Date": "2026-07-20",
+    "Before": {
+      "Kind": "Work",
+      "Start": "06:00:00",
+      "End": "16:00:00",
+      "BreakMinutes": 30
+    },
+    "After": {
+      "Kind": "Work",
+      "Start": "06:00:00",
+      "End": "16:00:00",
+      "BreakMinutes": 60
+    },
+    "Reason": "休憩の取得実績を店舗責任者に確認。勤怠端末の休憩入力漏れのため修正",
+    "Evidence": "店舗責任者ヒアリング記録",
+    "CorrectedBy": "鈴木 花子",
+    "CorrectedAt": "2026-08-06T14:21:00+09:00",
+    "Revoked": false,
+    "RevokedBy": null,
+    "RevokedAt": null,
+    "RevokeReason": null
+  },
+  {
+    "Id": "C20260907112000-a1e65b",
+    "BatchId": "B20260904100300-c435e6",
+    "Month": "2026-08",
+    "EmployeeNo": "1002",
+    "StaffName": "佐藤 美咲",
+    "Date": "2026-08-08",
+    "Before": {
+      "Kind": "Work",
+      "Start": null,
+      "End": "17:00:00",
+      "BreakMinutes": 60
+    },
+    "After": {
+      "Kind": "Work",
+      "Start": "08:00:00",
+      "End": "17:00:00",
+      "BreakMinutes": 60
+    },
+    "Reason": "出勤打刻漏れ。シフト表および店舗責任者の確認により出勤時刻を確認",
+    "Evidence": "シフト表・店舗責任者確認",
+    "CorrectedBy": "鈴木 花子",
+    "CorrectedAt": "2026-09-07T11:20:00+09:00",
+    "Revoked": false,
+    "RevokedBy": null,
+    "RevokedAt": null,
+    "RevokeReason": null
+  },
+  {
+    "Id": "C20260907113500-af8564",
+    "BatchId": "B20260904100300-c435e6",
+    "Month": "2026-08",
+    "EmployeeNo": "1004",
+    "StaffName": "高橋 ゆかり",
+    "Date": "2026-08-02",
+    "Before": {
+      "Kind": "Work",
+      "Start": "13:00:00",
+      "End": "22:00:00",
+      "BreakMinutes": 60
+    },
+    "After": {
+      "Kind": "Work",
+      "Start": "13:00:00",
+      "End": "22:30:00",
+      "BreakMinutes": 60
+    },
+    "Reason": "店舗責任者より退勤時刻の申告あり",
+    "Evidence": "店舗日報（8月分）",
+    "CorrectedBy": "鈴木 花子",
+    "CorrectedAt": "2026-09-07T11:35:00+09:00",
+    "Revoked": true,
+    "RevokedBy": "山田 太郎",
+    "RevokedAt": "2026-09-08T09:40:00+09:00",
+    "RevokeReason": "日報を再確認した結果、取込データの退勤時刻が正しかったため"
+  }
+]

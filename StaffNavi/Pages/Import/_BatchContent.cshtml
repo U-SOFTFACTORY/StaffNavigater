@@ -1,0 +1,92 @@
+@model BatchData
+@{
+    var issues = Model.Issues.OrderBy(i => i.Level == ImportIssue.Error ? 0 : 1).ThenBy(i => i.LineNo).ToList();
+}
+
+<div class="panel mt-3">
+    <div class="panel-title"><h2>エラー・要確認（@issues.Count 件）</h2></div>
+    @if (issues.Count == 0)
+    {
+        <p class="text-muted mb-0">@Icons.Svg("check-circle", 18) エラー・要確認データはありません。</p>
+    }
+    else
+    {
+        <div class="table-wrap" style="max-height: 360px">
+            <table class="table table-app">
+                <thead><tr><th>区分</th><th class="num">行</th><th>スタッフ番号</th><th>勤務日</th><th>内容</th></tr></thead>
+                <tbody>
+                    @foreach (var issue in issues)
+                    {
+                        <tr>
+                            <td><span class="pill @(issue.Level == ImportIssue.Error ? "pill-red" : "pill-orange")">@issue.Level</span></td>
+                            <td class="num">@(issue.LineNo > 0 ? issue.LineNo : "-")</td>
+                            <td>@issue.EmployeeNo</td>
+                            <td>@(issue.Date != null ? Fmt.Day(issue.Date.Value) : "")</td>
+                            <td>@issue.Message</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (Model.Records.Count > 0)
+{
+    <div class="panel mt-3">
+        <div class="panel-title"><h2>取込データ（@Model.Records.Count 件）</h2></div>
+        <div class="table-wrap" style="max-height: 480px">
+            <table class="table table-app table-sm">
+                <thead><tr><th class="num">行</th><th>スタッフ番号</th><th>氏名</th><th>拠点</th><th>勤務日</th><th>勤務区分</th><th>出勤</th><th>退勤</th><th class="num">休憩(分)</th><th>備考</th></tr></thead>
+                <tbody>
+                    @foreach (var r in Model.Records)
+                    {
+                        <tr>
+                            <td class="num">@r.LineNo</td>
+                            <td>@r.EmployeeNo</td>
+                            <td>@r.Name</td>
+                            <td>@r.Site</td>
+                            <td>@Fmt.Day(r.Date)</td>
+                            <td>@r.Kind.Label()</td>
+                            <td>@Fmt.Time(r.Start)</td>
+                            <td>@Fmt.Time(r.End)</td>
+                            <td class="num">@(r.Kind.IsWorking() ? r.BreakMinutes : "")</td>
+                            <td>@r.Note</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.Staff.Count > 0)
+{
+    <div class="panel mt-3">
+        <div class="panel-title"><h2>スタッフ情報（@Model.Staff.Count 件）</h2></div>
+        <div class="table-wrap">
+            <table class="table table-app table-sm">
+                <thead><tr><th>スタッフ番号</th><th>氏名</th><th>フリガナ</th><th>性別</th><th>生年月日</th><th>拠点</th><th>雇用区分</th><th>入社日</th><th class="num">時給</th><th class="num">通勤手当日額</th><th class="num">住民税月額</th><th class="num">扶養家族人数</th></tr></thead>
+                <tbody>
+                    @foreach (var s in Model.Staff)
+                    {
+                        <tr>
+                            <td>@s.EmployeeNo</td>
+                            <td>@s.Name</td>
+                            <td>@s.Kana</td>
+                            <td>@s.Gender</td>
+                            <td>@s.BirthDate?.ToString("yyyy/MM/dd")</td>
+                            <td>@s.Site</td>
+                            <td>@s.EmploymentType</td>
+                            <td>@s.HireDate.ToString("yyyy/MM/dd")</td>
+                            <td class="num">@Fmt.Yen(s.HourlyWage)</td>
+                            <td class="num">@Fmt.Yen(s.CommuteAllowancePerDay)</td>
+                            <td class="num">@Fmt.Yen(s.ResidentTax)</td>
+                            <td class="num">@s.Dependents</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

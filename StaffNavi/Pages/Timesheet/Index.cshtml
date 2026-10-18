@@ -1,0 +1,310 @@
+@page
+@model StaffNavi.Pages.Timesheet.IndexModel
+@{
+    ViewData["Title"] = "勤務表";
+    ViewData["Nav"] = "timesheet";
+    var view = Model.View;
+    var current = Model.Current;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">勤務表</h1>
+        <div class="page-sub">取込データ（原本）に補正内容を反映した勤務実績です</div>
+    </div>
+    @if (view != null)
+    {
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-secondary" asp-page-handler="Csv" asp-route-month="@view.Month" asp-route-site="@Model.Site">@Icons.Svg("download", 16) Excel出力（CSV）</a>
+            @if (current != null)
+            {
+                <a class="btn btn-primary" asp-page="/Output/Print" asp-route-type="timesheet" asp-route-month="@view.Month" asp-route-emp="@current.Staff.EmployeeNo" target="_blank">@Icons.Svg("printer", 16) 提出用PDF</a>
+            }
+        </div>
+    }
+</div>
+
+@if (view == null)
+{
+    <div class="panel">
+        <p class="mb-3">勤怠データがまだ取り込まれていません。</p>
+        <a class="btn btn-primary" asp-page="/Import/Index">@Icons.Svg("upload", 16) CSV取込へ</a>
+    </div>
+    return;
+}
+
+<div class="row g-3">
+    <div class="col-lg-3">
+        <div class="panel">
+            <form method="get" class="mb-3">
+                <label class="form-label small text-muted mb-1">対象月</label>
+                <select class="form-select mb-2" name="month" onchange="this.form.submit()">
+                    @foreach (var m in Model.Months)
+                    {
+                        <option value="@m" selected="@(m == view.Month)">@Fmt.Month(m)</option>
+                    }
+                </select>
+                <label class="form-label small text-muted mb-1">拠点</label>
+                <select class="form-select mb-2" name="site" onchange="this.form.submit()">
+                    <option value="">すべての拠点</option>
+                    @foreach (var s in Model.Sites)
+                    {
+                        <option value="@s" selected="@(s == Model.Site)">@s</option>
+                    }
+                </select>
+                <input class="form-control" type="search" name="q" value="@Model.Q" placeholder="氏名・スタッフ番号で絞込" />
+            </form>
+            <div class="staff-list">
+                @foreach (var s in Model.StaffList)
+                {
+                    <a class="staff-item @(s == current ? "active" : "")" asp-route-month="@view.Month" asp-route-site="@Model.Site" asp-route-q="@Model.Q" asp-route-emp="@s.Staff.EmployeeNo">
+                        <span>
+                            <span class="name d-block">@s.Staff.Name</span>
+                            <span class="meta">@s.Staff.EmployeeNo・@s.Staff.Site・@Fmt.Hours(s.Summary.WorkMinutes)</span>
+                        </span>
+                        <span class="text-end">
+                            @if (s.Summary.WarningCount > 0)
+                            {
+                                <span class="pill pill-red" title="要確認">@s.Summary.WarningCount</span>
+                            }
+                            @if (s.Summary.CorrectionCount > 0)
+                            {
+                                <span class="pill pill-orange" title="補正">補正@(s.Summary.CorrectionCount)</span>
+                            }
+                        </span>
+                    </a>
+                }
+                @if (Model.StaffList.Count == 0)
+                {
+                    <p class="text-muted small px-2">該当するスタッフがいません。</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-9">
+        @if (current == null)
+        {
+            <div class="panel text-muted">スタッフを選択してください。</div>
+        }
+        else
+        {
+            var sum = current.Summary;
+            <div class="panel">
+                <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+                    <div>
+                        <div class="h5 fw-bold mb-1">@current.Staff.Name <small class="text-muted fw-normal">（@current.Staff.Kana）</small></div>
+                        <div class="text-muted small">@current.Staff.EmployeeNo ／ @current.Staff.Site ／ @current.Staff.EmploymentType ／ @Fmt.Month(view.Month)（@view.FirstDay.ToString("M/d")～@view.LastDay.ToString("M/d")）</div>
+                    </div>
+                    <div class="small text-muted text-end">
+                        取込元：<a asp-page="/Import/Detail" asp-route-id="@view.Batch.Id">@view.Batch.FileName</a><br />
+                        取込日時：@Fmt.DateTime(view.Batch.ImportedAt)
+                    </div>
+                </div>
+                <div class="stat-chips">
+                    <div class="stat-chip"><span class="label">出勤日数</span><span class="value">@sum.WorkDays 日</span></div>
+                    <div class="stat-chip"><span class="label">休出日数</span><span class="value">@sum.HolidayWorkDays 日</span></div>
+                    <div class="stat-chip"><span class="label">有給日数</span><span class="value">@sum.PaidLeaveDays 日</span></div>
+                    <div class="stat-chip"><span class="label">欠勤日数</span><span class="value">@sum.AbsenceDays 日</span></div>
+                    <div class="stat-chip"><span class="label">総労働時間</span><span class="value">@Fmt.Hours(sum.WorkMinutes)</span></div>
+                    <div class="stat-chip"><span class="label">基本時間</span><span class="value">@Fmt.Hours(sum.BasicMinutes)</span></div>
+                    <div class="stat-chip"><span class="label">普通残時間</span><span class="value">@Fmt.Hours(sum.OvertimeMinutes)</span></div>
+                    <div class="stat-chip"><span class="label">深夜時間</span><span class="value">@Fmt.Hours(sum.NightMinutes)</span></div>
+                    <div class="stat-chip"><span class="label">深夜残時間</span><span class="value">@Fmt.Hours(sum.NightOvertimeMinutes)</span></div>
+                    <div class="stat-chip"><span class="label">休出時間</span><span class="value">@Fmt.Hours(sum.HolidayMinutes)</span></div>
+                    <div class="stat-chip"><span class="label">要確認</span><span class="value @(sum.WarningCount > 0 ? "text-danger" : "")">@sum.WarningCount 件</span></div>
+                    <div class="stat-chip"><span class="label">補正</span><span class="value">@sum.CorrectionCount 件</span></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="table-wrap">
+                    <table class="table table-app">
+                        <thead>
+                            <tr>
+                                <th>日付</th><th>勤務区分</th><th>出勤</th><th>退勤</th><th class="num">休憩</th>
+                                <th class="num">労働時間</th><th class="num">普通残</th><th class="num">深夜</th><th class="num">深夜残</th><th class="num">休出</th>
+                                <th>状態</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in current.Days)
+                            {
+                                var e = d.Effective;
+                                var o = d.Original?.Values;
+                                var corrected = d.IsCorrected;
+                                var rowClass = (d.Date.DayOfWeek == DayOfWeek.Saturday ? "day-sat " : d.Date.DayOfWeek == DayOfWeek.Sunday ? "day-sun " : "")
+                                    + (corrected ? "row-corrected" : d.Warnings.Count > 0 ? "row-warning" : "");
+                                var kindNow = e?.Kind.Label() ?? "データなし";
+                                var kindWas = o?.Kind.Label() ?? "データなし";
+                                var startNow = Fmt.Time(e?.Start); var startWas = Fmt.Time(o?.Start);
+                                var endNow = Fmt.Time(e?.End); var endWas = Fmt.Time(o?.End);
+                                var breakNow = e?.Kind.IsWorking() == true ? $"{e.BreakMinutes}分" : "";
+                                var breakWas = o?.Kind.IsWorking() == true ? $"{o.BreakMinutes}分" : "";
+                                <tr id="d@(d.Date.Day)" class="@rowClass">
+                                    <td class="text-nowrap">@Fmt.Day(d.Date)</td>
+                                    <td>@kindNow @if (corrected && kindWas != kindNow) { <span class="was">@kindWas</span> }</td>
+                                    <td>@startNow @if (corrected && startWas != startNow) { <span class="was">@(startWas == "" ? "未入力" : startWas)</span> }</td>
+                                    <td>@endNow @if (corrected && endWas != endNow) { <span class="was">@(endWas == "" ? "未入力" : endWas)</span> }</td>
+                                    <td class="num">@breakNow @if (corrected && breakWas != breakNow) { <span class="was">@breakWas</span> }</td>
+                                    <td class="num">@Fmt.Hours(d.Calc.WorkMinutes)</td>
+                                    <td class="num">@Fmt.Hours(d.Calc.OvertimeMinutes)</td>
+                                    <td class="num">@Fmt.Hours(d.Calc.NightMinutes)</td>
+                                    <td class="num">@Fmt.Hours(d.Calc.NightOvertimeMinutes)</td>
+                                    <td class="num">@Fmt.Hours(d.Calc.HolidayMinutes)</td>
+                                    <td>
+                                        @foreach (var w in d.Warnings)
+                                        {
+                                            <span class="pill pill-red d-inline-block mb-1">@Icons.Svg("alert", 12) @w</span>
+                                        }
+                                        @if (corrected)
+                                        {
+                                            <span class="pill pill-orange" title="@d.Correction!.Reason（@d.Correction.CorrectedBy @Fmt.DateTime(d.Correction.CorrectedAt)）">@Icons.Svg("history", 12) 補正済み</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm @(d.Warnings.Count > 0 ? "btn-primary" : "btn-outline-secondary")"
+                                                data-bs-toggle="modal" data-bs-target="#correctModal"
+                                                data-date="@d.Date.ToString("yyyy-MM-dd")" data-label="@Fmt.Day(d.Date)"
+                                                data-kind="@(e?.Kind ?? DayKind.Work)" data-start="@startNow" data-end="@endNow"
+                                                data-break="@(e?.Kind.IsWorking() == true ? e.BreakMinutes : 60)"
+                                                data-current="@(e?.Describe() ?? "データなし")" data-original="@(o?.Describe() ?? "データなし")">
+                                            @Icons.Svg("edit", 14) 補正
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="small text-muted mt-2">
+                    黄色の行は補正済み、取消線は取込時（原本）の値です。時間の区分はスタッフナビゲーターの単価区分に合わせています（普通残＝1日8時間超、深夜＝22時～5時、深夜残＝時間外の深夜、休出＝休日出勤の労働時間）。
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">
+                    <h2>この月の補正履歴</h2>
+                    <a class="more" asp-page="/Corrections/Index" asp-route-month="@view.Month" asp-route-emp="@current.Staff.EmployeeNo">補正履歴画面で見る →</a>
+                </div>
+                @if (Model.CurrentCorrections.Count == 0)
+                {
+                    <p class="text-muted mb-0">補正履歴はありません。</p>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="table table-app">
+                            <thead><tr><th>補正日時</th><th>勤務日</th><th>補正前</th><th>補正後</th><th>補正理由</th><th>補正者</th><th>状態</th></tr></thead>
+                            <tbody>
+                                @foreach (var c in Model.CurrentCorrections)
+                                {
+                                    <tr class="@(c.Revoked ? "text-muted" : "")">
+                                        <td class="text-nowrap">@Fmt.DateTime(c.CorrectedAt)</td>
+                                        <td class="text-nowrap">@Fmt.Day(c.Date)</td>
+                                        <td class="small">@(c.Before?.Describe() ?? "データなし")</td>
+                                        <td class="small">@c.After.Describe()</td>
+                                        <td class="small">@c.Reason @if (c.Evidence != null) { <div class="text-muted">根拠：@c.Evidence</div> }</td>
+                                        <td>@c.CorrectedBy</td>
+                                        <td>@if (c.Revoked) { <span class="pill pill-gray" title="@c.RevokeReason">取消済み</span> } else { <span class="pill pill-green">有効</span> }</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (current != null)
+{
+    <div class="modal fade" id="correctModal" tabindex="-1" aria-labelledby="correctModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form class="modal-content" method="post" asp-page-handler="Correct">
+                <input type="hidden" name="month" value="@view.Month" />
+                <input type="hidden" name="emp" value="@current.Staff.EmployeeNo" />
+                <input type="hidden" name="date" />
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="correctModalLabel">勤務データの補正 <small class="text-muted" data-field="label"></small></h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="閉じる"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm diff-table mb-3">
+                        <tr><th class="text-muted fw-normal" style="width: 140px">取込時（原本）</th><td data-field="original"></td></tr>
+                        <tr><th class="text-muted fw-normal">現在の内容</th><td data-field="current"></td></tr>
+                    </table>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">勤務区分</label>
+                            <select class="form-select" name="kind">
+                                @foreach (var k in DayKindExtensions.All)
+                                {
+                                    <option value="@k">@k.Label()</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 time-field">
+                            <label class="form-label">出勤時刻</label>
+                            <input class="form-control" type="time" name="start" />
+                        </div>
+                        <div class="col-md-3 time-field">
+                            <label class="form-label">退勤時刻</label>
+                            <input class="form-control" type="time" name="end" />
+                        </div>
+                        <div class="col-md-3 time-field">
+                            <label class="form-label">休憩（分）</label>
+                            <input class="form-control" type="number" name="breakMinutes" min="0" max="600" step="5" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">補正理由 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="reason" rows="2" required placeholder="例：退勤打刻漏れ。店舗日報および本人申告により退勤時刻を確認"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">根拠資料</label>
+                            <input class="form-control" name="evidence" placeholder="例：店舗日報（9/12）、本人申告書" />
+                        </div>
+                    </div>
+                    <div class="note-box mt-3">
+                        @Icons.Svg("shield", 18)
+                        <div>補正しても取込データ（原本）は変更されません。補正前・補正後・理由・補正者・日時が履歴として記録されます。スタッフナビゲーターの正データにも自動では反映されません（必要な場合は「提出資料出力」から勤怠データCSVを出力して取り込みます）。</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">キャンセル</button>
+                    <button type="submit" class="btn btn-primary px-4">@Icons.Svg("check", 16) 補正を登録</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var modal = document.getElementById('correctModal');
+            if (!modal) return;
+            var form = modal.querySelector('form');
+            function toggleTimes() {
+                var working = form.kind.value === 'Work' || form.kind.value === 'HolidayWork';
+                modal.querySelectorAll('.time-field').forEach(function (el) { el.style.display = working ? '' : 'none'; });
+            }
+            modal.addEventListener('show.bs.modal', function (e) {
+                var b = e.relatedTarget.dataset;
+                form.date.value = b.date;
+                form.kind.value = b.kind;
+                form.start.value = b.start;
+                form.end.value = b.end;
+                form.breakMinutes.value = b.break;
+                form.reason.value = '';
+                form.evidence.value = '';
+                modal.querySelector('[data-field=label]').textContent = b.label;
+                modal.querySelector('[data-field=current]').textContent = b.current;
+                modal.querySelector('[data-field=original]').textContent = b.original;
+                toggleTimes();
+            });
+            form.kind.addEventListener('change', toggleTimes);
+        })();
+    </script>
+}
