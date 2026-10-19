@@ -73,7 +73,7 @@ jobs:
       - self-hosted
       - Windows
       - X64
-      - alc-iis
+      - staffnav-iis
 
     steps:
 
