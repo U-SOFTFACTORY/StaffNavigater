@@ -36,6 +36,10 @@ namespace StaffNavi.Pages.Import
             {
                 return RedirectToPage("/Timesheet/Index", new { month = batch.TargetMonth });
             }
+            if (batch.Kind == ImportKind.Payroll)
+            {
+                return RedirectToPage("/Ledger/Index", new { year = int.Parse(batch.TargetMonth![..4]) });
+            }
             return RedirectToPage("/Import/Index");
         }
 

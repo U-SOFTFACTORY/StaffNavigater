@@ -4,7 +4,7 @@
     ViewData["Title"] = "取込内容の確認";
     ViewData["Nav"] = "import";
     var p = Model.Pending;
-    var count = p.Kind == ImportKind.Staff ? p.Data.Staff.Count : p.Data.Records.Count;
+    var count = p.RowCount;
 }
 
 <div class="page-head">
@@ -22,7 +22,11 @@
                 <div class="stat-chip"><span class="label">種類</span><span class="value">@(p.Kind?.Label() ?? "判別不可")</span></div>
                 @if (p.TargetMonth != null)
                 {
-                    <div class="stat-chip"><span class="label">対象月</span><span class="value">@Fmt.Month(p.TargetMonth)</span></div>
+                    <div class="stat-chip"><span class="label">対象月</span><span class="value">@Fmt.Month(p.TargetMonth)@(p.Kind == ImportKind.Payroll ? "支給" : "")</span></div>
+                }
+                @if (p.OrderNos.Count > 0)
+                {
+                    <div class="stat-chip"><span class="label">受注</span><span class="value">@string.Join("・", p.OrderNos)</span></div>
                 }
                 <div class="stat-chip"><span class="label">取込件数</span><span class="value">@count 件</span></div>
                 <div class="stat-chip"><span class="label">エラー</span><span class="value @(p.ErrorCount > 0 ? "text-danger" : "")">@p.ErrorCount 件</span></div>

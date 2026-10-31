@@ -4,17 +4,19 @@
     ViewData["Title"] = "賃金台帳";
     ViewData["Nav"] = "ledger";
     var current = Model.Current;
+    var cols = Model.Columns;
+    var filled = cols.Where(c => c != null).Select(c => c!).ToList();
 }
 
 <div class="page-head">
     <div>
         <h1 class="page-title">賃金台帳</h1>
-        <div class="page-sub">補正後の勤務実績をもとに、スタッフナビゲーターと同じ様式（1年分・月別）で集計します</div>
+        <div class="page-sub">スタッフナビゲーターの給与計算書CSVから、先方の賃金台帳（Excel）と同じ様式で1年分を自動作成します</div>
     </div>
     @if (current != null)
     {
         <div class="d-flex gap-2 flex-wrap">
-            <a class="btn btn-outline-secondary" asp-page-handler="Csv" asp-route-year="@Model.Year" asp-route-emp="@current.EmployeeNo">@Icons.Svg("download", 16) CSV出力（スタッフナビゲーター形式）</a>
+            <a class="btn btn-outline-secondary" asp-page-handler="Csv" asp-route-year="@Model.Year" asp-route-emp="@current.EmployeeNo">@Icons.Svg("download", 16) CSV出力（賃金台帳CSV形式）</a>
             <a class="btn btn-primary" asp-page="/Output/Print" asp-route-type="ledger" asp-route-year="@Model.Year" asp-route-emp="@current.EmployeeNo" target="_blank">@Icons.Svg("printer", 16) 提出用PDF</a>
         </div>
     }
@@ -23,7 +25,7 @@
 @if (Model.Years.Count == 0)
 {
     <div class="panel">
-        <p class="mb-3">勤怠データがまだ取り込まれていません。</p>
+        <p class="mb-3">給与計算書・タイムシートがまだ取り込まれていません。</p>
         <a class="btn btn-primary" asp-page="/Import/Index">@Icons.Svg("upload", 16) CSV取込へ</a>
     </div>
     return;
@@ -33,29 +35,31 @@
     <div class="col-lg-3">
         <div class="panel">
             <form method="get" class="mb-3">
-                <label class="form-label small text-muted mb-1">対象年</label>
+                <label class="form-label small text-muted mb-1">対象年（支給年）</label>
                 <select class="form-select mb-2" name="year" onchange="this.form.submit()">
                     @foreach (var y in Model.Years)
                     {
                         <option value="@y" selected="@(y == Model.Year)">@(y)年</option>
                     }
                 </select>
-                <label class="form-label small text-muted mb-1">拠点</label>
-                <select class="form-select" name="site" onchange="this.form.submit()">
-                    <option value="">すべての拠点</option>
+                <label class="form-label small text-muted mb-1">就業先（SS）</label>
+                <select class="form-select mb-2" name="site" onchange="this.form.submit()">
+                    <option value="">すべての就業先</option>
                     @foreach (var s in Model.Sites)
                     {
                         <option value="@s" selected="@(s == Model.Site)">@s</option>
                     }
                 </select>
+                <input class="form-control" type="search" name="q" value="@Model.Q" placeholder="氏名・スタッフ番号で絞込" />
             </form>
+            <div class="small text-muted mb-1">@Model.StaffList.Count 名</div>
             <div class="staff-list">
                 @foreach (var s in Model.StaffList)
                 {
-                    <a class="staff-item @(s == current ? "active" : "")" asp-route-year="@Model.Year" asp-route-site="@Model.Site" asp-route-emp="@s.EmployeeNo">
+                    <a class="staff-item @(s == current ? "active" : "")" asp-route-year="@Model.Year" asp-route-site="@Model.Site" asp-route-q="@Model.Q" asp-route-emp="@s.EmployeeNo">
                         <span>
                             <span class="name d-block">@s.Name</span>
-                            <span class="meta">@s.EmployeeNo・@s.Site</span>
+                            <span class="meta">@s.EmployeeNo・@string.Join("／", Model.Workplaces.GetValueOrDefault(s.EmployeeNo) ?? [])</span>
                         </span>
                     </a>
                 }
@@ -65,15 +69,12 @@
     <div class="col-lg-9">
         @if (current != null)
         {
-            var byMonth = Model.Columns.Where(c => c.Staff != null).ToDictionary(c => int.Parse(c.Month[5..]));
-            var months = Enumerable.Range(1, 12).ToList();
-            var staffMonths = byMonth.Values.Select(c => c.Staff!).ToList();
             <div class="panel">
                 <div class="row g-2 small">
-                    <div class="col-sm-6 col-xl-3"><span class="text-muted">スタッフ番号／スタッフ名</span><div class="fw-bold fs-6">@current.EmployeeNo　@current.Name</div></div>
+                    <div class="col-sm-6 col-xl-3"><span class="text-muted">スタッフ№／スタッフ名</span><div class="fw-bold fs-6">@current.EmployeeNo　@current.Name</div></div>
                     <div class="col-sm-6 col-xl-3"><span class="text-muted">性別／生年月日</span><div class="fw-bold">@current.Gender ／ @(current.BirthDate?.ToString("yyyy/MM/dd") ?? "-")</div></div>
-                    <div class="col-sm-6 col-xl-3"><span class="text-muted">税区分／入社日</span><div class="fw-bold">甲 ／ @current.HireDate.ToString("yyyy/MM/dd")</div></div>
-                    <div class="col-sm-6 col-xl-3"><span class="text-muted">拠点／時給</span><div class="fw-bold">@current.Site ／ @Fmt.Yen(current.HourlyWage)円</div></div>
+                    <div class="col-sm-6 col-xl-3"><span class="text-muted">税区分／入社日</span><div class="fw-bold">@(current.TaxCategory == "" ? "-" : current.TaxCategory) ／ @(current.HireDate?.ToString("yyyy/MM/dd") ?? "-")@(current.RetireDate != null ? $"（退職 {current.RetireDate:yyyy/MM/dd}）" : "")</div></div>
+                    <div class="col-sm-6 col-xl-3"><span class="text-muted">ｽﾀｯﾌ区分</span><div class="fw-bold">@current.Category</div></div>
                 </div>
             </div>
             <div class="panel">
@@ -82,38 +83,50 @@
                         <thead>
                             <tr>
                                 <th style="min-width: 150px">@(Model.Year)年1月～@(Model.Year)年12月給与</th>
-                                @foreach (var m in months)
+                                @for (var m = 1; m <= 12; m++)
                                 {
+                                    var col = cols[m - 1];
                                     <th class="num">
-                                        @if (byMonth.TryGetValue(m, out var col))
+                                        @(m)月
+                                        @if (col != null)
                                         {
-                                            <a asp-page="/Timesheet/Index" asp-route-month="@col.Month" asp-route-emp="@current.EmployeeNo">@(m)月</a>
-                                            @if (col.Staff!.Summary.CorrectionCount > 0)
+                                            <div>
+                                                @if (col.IsEstimate)
+                                                {
+                                                    <span class="pill pill-orange" title="給与計算書が未取込のため、勤務表から試算しています">試算</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="pill pill-green" title="@col.Source">確定</span>
+                                                }
+                                            </div>
+                                            @if (col.CorrectionCount > 0)
                                             {
-                                                <div><span class="pill pill-orange">補正@(col.Staff.Summary.CorrectionCount)</span></div>
+                                                <div><a class="pill pill-orange" asp-page="/Timesheet/Index" asp-route-month="@col.PeriodStart.ToString("yyyy-MM")" asp-route-emp="@current.EmployeeNo">補正@(col.CorrectionCount)</a></div>
                                             }
-                                        }
-                                        else
-                                        {
-                                            <text>@(m)月</text>
                                         }
                                     </th>
                                 }
-                                <th class="num">給与計</th>
+                                <th class="num">合計</th>
                             </tr>
                             <tr class="ledger-sub">
-                                <th class="fw-normal">支払日</th>
-                                @foreach (var m in months)
+                                <th class="fw-normal">支給日</th>
+                                @foreach (var col in cols)
                                 {
-                                    <td class="num">@(byMonth.TryGetValue(m, out var col) ? col.View.PayDate.ToString("M/d") : "")</td>
+                                    <td class="num">@(col?.PayDate.ToString("M/d"))</td>
                                 }
                                 <td></td>
                             </tr>
                             <tr class="ledger-sub">
                                 <th class="fw-normal">対象期間</th>
-                                @foreach (var m in months)
+                                @foreach (var col in cols)
                                 {
-                                    <td class="num text-nowrap">@(byMonth.TryGetValue(m, out var col) ? $"{col.View.FirstDay:M/d}～{col.View.LastDay:M/d}" : "")</td>
+                                    <td class="num text-nowrap">
+                                        @if (col != null)
+                                        {
+                                            <a asp-page="/Timesheet/Index" asp-route-month="@col.PeriodStart.ToString("yyyy-MM")" asp-route-emp="@current.EmployeeNo">@($"{col.PeriodStart:M/d}～{col.PeriodEnd:M/d}")</a>
+                                        }
+                                    </td>
                                 }
                                 <td></td>
                             </tr>
@@ -128,11 +141,11 @@
                                 previousGroup = item.Group;
                                 <tr class="@cls">
                                     <th class="fw-normal @(item.Strong ? "fw-bold" : "")">@item.Label</th>
-                                    @foreach (var m in months)
+                                    @foreach (var col in cols)
                                     {
-                                        <td class="num">@(byMonth.TryGetValue(m, out var col) ? StaffNavigatorFormat.FormatValue(item, item.Value(col.Staff!)) : "")</td>
+                                        <td class="num @(col?.IsEstimate == true ? "estimate" : "")">@(col != null ? StaffNavigatorFormat.FormatValue(item, col) : "")</td>
                                     }
-                                    <td class="num fw-bold">@(staffMonths.Count > 0 ? StaffNavigatorFormat.FormatValue(item, StaffNavigatorFormat.Total(item, staffMonths)) : "")</td>
+                                    <td class="num fw-bold">@(filled.Count > 0 ? StaffNavigatorFormat.Total(item, filled) : "")</td>
                                 </tr>
                             }
                         </tbody>
@@ -140,12 +153,19 @@
                 </div>
                 <div class="note-box mt-3">
                     @Icons.Svg("help", 18)
-                    <div>項目と並び順は、スタッフナビゲーターの「給与管理｜賃金台帳印刷」に合わせています。CSV出力もスタッフナビゲーターの「賃金台帳CSVファイル出力形式」と同じ項目です。締日は末日、支払日は翌月@(Model.Columns.FirstOrDefault().View?.Settings.PayDayOfMonth ?? 25)日として表示しています。</div>
+                    <div>
+                        項目と並び順は、先方の賃金台帳（Excel「印刷用」シート）に合わせています。<span class="pill pill-green">確定</span> の月はスタッフナビゲーターの<strong>給与計算書CSV</strong>（例：26.10支給給与計算書.csv）の値をそのまま転記しています。
+                        給与計算書の「課税他１～１０（休業補償など）」は「その他課税」、「非課税他１～５（保安講習受講など）」は「その他非課税」、「債権差押・紙明細発行料など」は「控除」に合計しています。
+                        支給日は締日（末日）の翌月@(Model.Columns.FirstOrDefault(c => c != null) is { } first ? first.PayDate.Day : 25)日前後（土日の場合は直前の平日）です。
+                    </div>
                 </div>
-                <div class="note-box warn mt-2">
-                    @Icons.Svg("alert", 18)
-                    <div>金額はデモ用の簡易計算です（社会保険料は総支給額×料率、所得税は簡易税率で算出）。本開発では、スタッフナビゲーターの給与計算結果（賃金台帳CSV）を取り込んで使う方式を想定しています。</div>
-                </div>
+                @if (filled.Any(c => c.IsEstimate))
+                {
+                    <div class="note-box warn mt-2">
+                        @Icons.Svg("alert", 18)
+                        <div><span class="pill pill-orange">試算</span> の月は給与計算書が未取込のため、勤務表から簡易計算した参考値です（受注ごとの単価、社会保険料は等級の標準報酬月額×料率）。給与計算書CSVを取り込むと確定値に置き換わります。</div>
+                    </div>
+                }
             </div>
         }
     </div>

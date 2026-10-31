@@ -22,18 +22,9 @@
                     <input class="form-control" asp-for="Input.CompanyName" required />
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" asp-for="Input.PayDayOfMonth">支払日（末締・翌月○日払い）</label>
+                    <label class="form-label" asp-for="Input.PayDayOfMonth">支払日（末締・翌月○日払い。土日は前の平日）</label>
                     <input class="form-control" asp-for="Input.PayDayOfMonth" min="1" max="31" />
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label" asp-for="Input.DailyStandardMinutes">1日の法定労働時間（分）</label>
-                    <input class="form-control" asp-for="Input.DailyStandardMinutes" min="1" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" asp-for="Input.PaidLeaveMinutes">有給休暇1日の時間（分）</label>
-                    <input class="form-control" asp-for="Input.PaidLeaveMinutes" min="0" />
-                </div>
-                <div class="col-md-4"></div>
                 <div class="col-md-4">
                     <label class="form-label" asp-for="Input.OvertimeRate">普通残の支給率</label>
                     <input class="form-control" asp-for="Input.OvertimeRate" step="0.01" min="0" />
@@ -47,11 +38,11 @@
                     <input class="form-control" asp-for="Input.NightRate" step="0.01" min="0" />
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" asp-for="Input.HealthInsuranceRate">健康保険料率</label>
+                    <label class="form-label" asp-for="Input.HealthInsuranceRate">健康保険料率（本人・標準報酬月額に乗じる）</label>
                     <input class="form-control" asp-for="Input.HealthInsuranceRate" step="0.0001" min="0" />
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label" asp-for="Input.CareInsuranceRate">介護保険料率（40～64歳）</label>
+                    <label class="form-label" asp-for="Input.CareInsuranceRate">介護保険料率（介護保険「対象」の人）</label>
                     <input class="form-control" asp-for="Input.CareInsuranceRate" step="0.0001" min="0" />
                 </div>
                 <div class="col-md-3">
@@ -66,10 +57,14 @@
                     <label class="form-label" asp-for="Input.IncomeTaxRate">所得税（簡易税率・扶養1人につき1割減）</label>
                     <input class="form-control" asp-for="Input.IncomeTaxRate" step="0.00001" min="0" />
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label" asp-for="Input.IncomeTaxRateOtsu">所得税（乙欄・簡易税率）</label>
+                    <input class="form-control" asp-for="Input.IncomeTaxRateOtsu" step="0.0001" min="0" />
+                </div>
             </div>
             <div class="note-box warn mt-3">
                 @Icons.Svg("alert", 18)
-                <div>デモ用の簡易計算の設定です。本開発では、就業規則・給与規程に合わせて計算方法を決定します。</div>
+                <div>給与計算書CSVが未取込の月の「試算」に使う設定です（給与計算書を取り込んだ月は、スタッフナビゲーターの計算結果をそのまま使います）。</div>
             </div>
             <button class="btn btn-primary px-4 mt-3" type="submit">@Icons.Svg("check", 16) 保存</button>
         </form>
@@ -77,10 +72,40 @@
     <div class="col-xl-4">
         <div class="panel">
             <div class="panel-title"><h2>デモデータ</h2></div>
-            <p class="small text-muted">取込データ・補正履歴・操作ログ・設定をすべて削除し、デモ開始時の状態（2026年7月・8月分を取込済み）に戻します。</p>
+            <p class="small text-muted">取込データ・補正履歴・操作ログ・設定をすべて削除し、デモ開始時の状態（2025年12月～2026年10月就業分のタイムシート、2026年1月～10月支給分の給与計算書を取込済み）に戻します。</p>
             <form method="post" asp-page-handler="Reset" data-confirm="デモデータを初期状態に戻します。取込データ・補正履歴・操作ログはすべて削除されます。よろしいですか？">
                 <button class="btn btn-outline-danger" type="submit">@Icons.Svg("undo", 16) デモデータを初期化</button>
             </form>
         </div>
+    </div>
+</div>
+
+<div class="panel mt-3">
+    <div class="panel-title"><h2>受注一覧（@Model.Orders.Count 件）</h2></div>
+    <p class="small text-muted">タイムシートの受注番号から、就業先・勤務帯・所定時間を判断します。所定時間を超えた分を普通残・深夜残として計算します（先方の勤務表（実績）では、22:00-32:00 の受注は所定7時間、20:00-32:00 の受注は所定8時間で計算されていました）。</p>
+    <div class="table-wrap">
+        <table class="table table-app table-sm">
+            <thead><tr><th>受注番号</th><th>受注名称</th><th>請負先</th><th>就業先</th><th>業務内容２</th><th>区分（所定の勤務帯）</th><th class="num">所定時間</th><th class="num">単価</th><th class="num">交通費（日額）</th></tr></thead>
+            <tbody>
+                @foreach (var o in Model.Orders)
+                {
+                    <tr>
+                        <td>@o.OrderNo</td>
+                        <td>@o.Name</td>
+                        <td class="small">@o.Client</td>
+                        <td>@o.Workplace<div class="small text-muted">@o.Address</div></td>
+                        <td>@o.ShiftName</td>
+                        <td>@o.ShiftLabel</td>
+                        <td class="num">@Fmt.Hours(o.StandardMinutes)</td>
+                        <td class="num">@Fmt.Yen(o.HourlyWage)</td>
+                        <td class="num">@Fmt.Yen(o.CommutePerDay)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="note-box mt-2">
+        @Icons.Svg("help", 18)
+        <div>本開発では、スタッフナビゲーターの受注情報（CSV等）から取り込む方法を想定しています（受注の出力形式は要確認）。</div>
     </div>
 </div>

@@ -29,11 +29,14 @@ namespace StaffNavi.Pages.Output
         public LaborSettings Settings { get; private set; } = new();
         public MonthView? View { get; private set; }
         public List<StaffMonth> MonthStaff { get; private set; } = [];
-        public List<(StaffMember Staff, List<(string Month, MonthView View, StaffMonth? Staff)> Columns)> Ledgers { get; private set; } = [];
+        public List<(StaffMember Staff, LedgerMonth?[] Columns)> Ledgers { get; private set; } = [];
         public DateTimeOffset PrintedAt { get; private set; }
         public string PrintedBy { get; private set; } = "";
 
-        public string SiteLabel => string.IsNullOrEmpty(Site) ? "全拠点" : Site;
+        public string SiteLabel => string.IsNullOrEmpty(Site) ? "全就業先" : Site;
+
+        /// <summary>出力対象の勤務表（就業先を指定した場合はその就業先の受注のみ）</summary>
+        public IEnumerable<OrderSheet> SheetsOf(StaffMonth staff) => staff.Sheets.Where(s => string.IsNullOrEmpty(Site) || s.Order.Workplace == Site);
 
         public IActionResult OnGet()
         {
@@ -48,11 +51,14 @@ namespace StaffNavi.Pages.Output
                 var year = Year ?? labor.GetYears().FirstOrDefault();
                 Year = year;
                 period = $"{year}年";
-                var targets = repo.GetStaff()
-                    .Where(s => string.IsNullOrEmpty(Site) || s.Site == Site)
-                    .Where(s => string.IsNullOrEmpty(Emp) || s.EmployeeNo == Emp)
+                var book = labor.GetLedgerBook(year, string.IsNullOrEmpty(Emp) ? null : Emp);
+                var workplaces = labor.GetStaffWorkplaces();
+                Ledgers = repo.GetStaff()
+                    .Where(s => book.ContainsKey(s.EmployeeNo))
+                    .Where(s => string.IsNullOrEmpty(Site) || workplaces.GetValueOrDefault(s.EmployeeNo)?.Contains(Site) == true)
+                    .OrderBy(s => s.EmployeeNo.PadLeft(8, '0'))
+                    .Select(s => (s, book[s.EmployeeNo]))
                     .ToList();
-                Ledgers = targets.Select(s => (s, labor.GetLedger(year, s.EmployeeNo))).ToList();
                 if (Ledgers.Count == 0)
                 {
                     return NotFound();
@@ -69,7 +75,7 @@ namespace StaffNavi.Pages.Output
                 }
                 period = Fmt.Month(View.Month);
                 MonthStaff = View.Staff
-                    .Where(s => string.IsNullOrEmpty(Site) || s.Staff.Site == Site)
+                    .Where(s => string.IsNullOrEmpty(Site) || s.Workplaces.Contains(Site))
                     .Where(s => Type == "summary" || string.IsNullOrEmpty(Emp) || s.Staff.EmployeeNo == Emp)
                     .ToList();
             }

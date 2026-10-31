@@ -2,22 +2,22 @@
     <div class="flow-box master">
         @Icons.Svg("database", 26)
         <strong>スタッフナビゲーター</strong>
-        <span>スタッフ・勤怠・給与等の正データ</span>
+        <span>スタッフ・受注・タイムシート・給与計算の正データ</span>
     </div>
     <div class="flow-arrow">@Icons.Svg("arrow-right", 22)CSV出力</div>
     <div class="flow-box">
         @Icons.Svg("upload", 26)
         <strong>手動でCSV取込</strong>
-        <span>取込データは原本として保持</span>
+        <span>タイムシート／スタッフ全データ／給与計算書（原本として保持）</span>
     </div>
     <div class="flow-arrow">@Icons.Svg("arrow-right", 22)</div>
     <div class="flow-box">
         @Icons.Svg("monitor", 26)
         <strong>労務資料作成支援（本システム）</strong>
-        <span>勤務表・賃金台帳の作成／補正履歴管理</span>
+        <span>勤務表の確認・補正／賃金台帳の自動作成／提出資料の出力</span>
     </div>
 </div>
 <div class="note-box mt-3">
     @Icons.Svg("shield", 18)
-    <div>本システムで行った補正は、本システム内の補正履歴として記録されます。<strong>スタッフナビゲーターの正データには自動では反映されません</strong>（API等による自動連携は行いません）。補正後の勤怠をスタッフナビゲーターに戻す場合は、スタッフナビゲーターの取込形式で出力したCSVを手動で取り込みます。</div>
+    <div>本システムで行った補正は、本システム内の補正履歴として記録されます。<strong>スタッフナビゲーターの正データには自動では反映されません</strong>（API等による自動連携は行いません）。補正後の勤怠は「勤怠データCSV」で出力してスタッフナビゲーターに取り込み、給与計算後の給与計算書CSVを本システムに取り込むと、賃金台帳が確定します。</div>
 </div>

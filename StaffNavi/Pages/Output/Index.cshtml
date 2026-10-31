@@ -29,13 +29,13 @@
                             <div class="col-md-4">
                                 <label class="tile h-100">
                                     <span class="tile-head"><input class="form-check-input mt-0" type="radio" name="type" value="timesheet" checked /> 勤務表（出勤簿）</span>
-                                    <span class="tile-sub">日別の始業・終業・休憩・労働時間</span>
+                                    <span class="tile-sub">受注ごとの勤務表（実績）の様式</span>
                                 </label>
                             </div>
                             <div class="col-md-4">
                                 <label class="tile h-100">
                                     <span class="tile-head"><input class="form-check-input mt-0" type="radio" name="type" value="ledger" /> 賃金台帳</span>
-                                    <span class="tile-sub">スタッフナビゲーターと同じ様式（1年分・月別）</span>
+                                    <span class="tile-sub">先方の賃金台帳Excelと同じ様式（支給月別・1年分）</span>
                                 </label>
                             </div>
                             <div class="col-md-4">
@@ -48,7 +48,7 @@
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6" data-for="timesheet summary">
-                            <label class="form-label">対象月</label>
+                            <label class="form-label">就業月</label>
                             <select class="form-select" name="month">
                                 @foreach (var m in Model.Months)
                                 {
@@ -57,7 +57,7 @@
                             </select>
                         </div>
                         <div class="col-md-6" data-for="ledger" style="display: none">
-                            <label class="form-label">対象年</label>
+                            <label class="form-label">対象年（支給年）</label>
                             <select class="form-select" name="year" disabled>
                                 @foreach (var y in Model.Years)
                                 {
@@ -66,9 +66,9 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">拠点</label>
+                            <label class="form-label">就業先（SS）</label>
                             <select class="form-select" name="site">
-                                <option value="">すべての拠点</option>
+                                <option value="">すべての就業先</option>
                                 @foreach (var s in Model.Sites)
                                 {
                                     <option value="@s">@s</option>
@@ -78,10 +78,10 @@
                         <div class="col-md-6" data-for="timesheet ledger">
                             <label class="form-label">対象者</label>
                             <select class="form-select" name="emp">
-                                <option value="">選択した拠点の全員</option>
+                                <option value="">選択した就業先の全員</option>
                                 @foreach (var s in Model.Staff)
                                 {
-                                    <option value="@s.EmployeeNo" data-site="@s.Site">@s.Name（@s.EmployeeNo・@s.Site）</option>
+                                    <option value="@s.EmployeeNo" data-site="@string.Join("|", Model.Workplaces[s.EmployeeNo])">@s.Name（@s.EmployeeNo）</option>
                                 }
                             </select>
                         </div>
@@ -111,7 +111,7 @@
                         <form method="get" class="tile h-100">
                             <input type="hidden" name="handler" value="SnAttendance" />
                             <span class="tile-head">@Icons.Svg("upload", 18, "blue") 勤怠データCSV（取込用）</span>
-                            <span class="tile-sub mb-2">補正後の勤怠（日数・時間）を、スタッフナビゲーターの「給与管理｜勤怠データCSVファイル取込」で取り込める形式で出力します。</span>
+                            <span class="tile-sub mb-2">補正後の勤怠（日数・時間）を、スタッフ×受注ごとに、スタッフナビゲーターの「給与管理｜勤怠データCSVファイル取込」で取り込める形式で出力します。</span>
                             <div class="d-flex gap-2 mt-auto">
                                 <select class="form-select form-select-sm" name="month">
                                     @foreach (var m in Model.Months)
@@ -120,7 +120,7 @@
                                     }
                                 </select>
                                 <select class="form-select form-select-sm" name="site">
-                                    <option value="">全拠点</option>
+                                    <option value="">全就業先</option>
                                     @foreach (var s in Model.Sites)
                                     {
                                         <option value="@s">@s</option>
@@ -134,7 +134,7 @@
                         <form method="get" class="tile h-100">
                             <input type="hidden" name="handler" value="SnLedger" />
                             <span class="tile-head">@Icons.Svg("ledger", 18, "blue") 賃金台帳CSV</span>
-                            <span class="tile-sub mb-2">全スタッフの賃金台帳を、スタッフナビゲーターの「賃金台帳CSVファイル出力形式」と同じ項目で出力します。</span>
+                            <span class="tile-sub mb-2">全スタッフの賃金台帳を、先方の賃金台帳Excel（csvシート）と同じ61項目で出力します。Excelに貼り付ける作業が不要になります。</span>
                             <div class="d-flex gap-2 mt-auto">
                                 <select class="form-select form-select-sm" name="year">
                                     @foreach (var y in Model.Years)
@@ -143,7 +143,7 @@
                                     }
                                 </select>
                                 <select class="form-select form-select-sm" name="site">
-                                    <option value="">全拠点</option>
+                                    <option value="">全就業先</option>
                                     @foreach (var s in Model.Sites)
                                     {
                                         <option value="@s">@s</option>
@@ -156,7 +156,7 @@
                 </div>
                 <div class="note-box mt-3">
                     @Icons.Svg("help", 18)
-                    <div>勤怠データCSVをスタッフナビゲーターで取り込むときは、取込画面のオプション「1行目を無視する」をONにしてください。受注番号は「0」（スタッフの受注が1つ）で出力しています。</div>
+                    <div>勤怠データCSVをスタッフナビゲーターで取り込むときは、取込画面のオプション「1行目を無視する」をONにしてください。受注番号は、取り込んだタイムシートの受注番号をそのまま出力します（掛け持ちのスタッフは受注ごとに行が分かれます）。</div>
                 </div>
             </div>
         }
@@ -202,7 +202,7 @@
                 });
                 var site = form.site.value;
                 Array.prototype.forEach.call(form.emp.options, function (o) {
-                    o.hidden = !!(site && o.dataset.site && o.dataset.site !== site);
+                    o.hidden = !!(site && o.dataset.site && o.dataset.site.split("|").indexOf(site) < 0);
                 });
                 if (form.emp.selectedOptions[0] && form.emp.selectedOptions[0].hidden) form.emp.value = '';
             }

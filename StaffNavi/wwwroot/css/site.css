@@ -212,3 +212,15 @@ tr.row-warning { background: #fff5f5; }
   .tile-grid { grid-template-columns: repeat(2, 1fr); }
   .staff-list { max-height: 280px; }
 }
+
+/* 勤務表（スタッフナビゲーターの勤務表（実績）に合わせた表示） */
+.sheet-head { font-size: .82rem; }
+.sheet-head th { width: 90px; color: var(--muted); font-weight: normal; white-space: nowrap; background: #fafbfd; }
+.sheet-head td { min-width: 160px; }
+.timesheet-table { font-size: .82rem; }
+.timesheet-table td, .timesheet-table th { padding: .28rem .4rem; white-space: nowrap; }
+.timesheet-table tfoot td { border-top: 2px solid #9aa5b5; background: #f7f8fa; }
+tr.row-empty td { color: #9aa3af; }
+tr.row-empty .btn-link { font-size: .75rem; visibility: hidden; }
+tr.row-empty:hover .btn-link { visibility: visible; }
+.ledger-table td.estimate { color: #92400e; background: #fffbeb; }

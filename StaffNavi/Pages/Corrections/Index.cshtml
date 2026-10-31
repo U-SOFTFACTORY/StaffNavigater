@@ -5,10 +5,10 @@
     ViewData["Nav"] = "corrections";
     (string Label, Func<AttendanceValues?, string> Get)[] fields =
     [
-        ("勤務区分", v => v?.Kind.Label() ?? "データなし"),
-        ("出勤時刻", v => v?.Kind.IsWorking() == true ? (Fmt.Time(v.Start) is { Length: > 0 } s ? s : "未入力") : "-"),
-        ("退勤時刻", v => v?.Kind.IsWorking() == true ? (Fmt.Time(v.End) is { Length: > 0 } e ? e : "未入力") : "-"),
-        ("休憩", v => v?.Kind.IsWorking() == true ? $"{v.BreakMinutes}分" : "-"),
+        ("出欠", v => v?.Kind.Label() ?? "データなし"),
+        ("始業", v => v?.Kind.HasTimes() == true ? (Fmt.Clock(v.Start) is { Length: > 0 } s ? s : "未入力") : "-"),
+        ("終業", v => v?.Kind.HasTimes() == true ? (Fmt.Clock(v.End) is { Length: > 0 } e ? e : "未入力") : "-"),
+        ("休憩", v => v?.Kind.HasTimes() == true ? $"{v.BreakMinutes}分" : "-"),
     ];
 }
 
@@ -37,7 +37,7 @@
                 <option value="">すべて</option>
                 @foreach (var s in Model.Staff)
                 {
-                    <option value="@s.EmployeeNo" selected="@(s.EmployeeNo == Model.Emp)">@s.Name（@s.Site）</option>
+                    <option value="@s.EmployeeNo" selected="@(s.EmployeeNo == Model.Emp)">@s.Name（@s.EmployeeNo）</option>
                 }
             </select>
         </div>
@@ -66,7 +66,7 @@
         <div class="table-wrap">
             <table class="table table-app">
                 <thead>
-                    <tr><th>補正日時</th><th>スタッフ</th><th>勤務日</th><th>補正内容</th><th>補正理由・根拠資料</th><th>補正者</th><th>状態</th><th></th></tr>
+                    <tr><th>補正日時</th><th>スタッフ</th><th>就業日・受注</th><th>補正内容</th><th>補正理由・根拠資料</th><th>補正者</th><th>状態</th><th></th></tr>
                 </thead>
                 <tbody>
                     @foreach (var c in Model.Items)
@@ -74,7 +74,7 @@
                         <tr class="@(c.Revoked ? "text-muted" : "")">
                             <td class="text-nowrap">@Fmt.DateTime(c.CorrectedAt)</td>
                             <td class="text-nowrap">@c.StaffName<div class="small text-muted">@c.EmployeeNo</div></td>
-                            <td class="text-nowrap"><a asp-page="/Timesheet/Index" asp-route-month="@c.Month" asp-route-emp="@c.EmployeeNo" asp-fragment="d@(c.Date.Day)">@c.Date.ToString("yyyy/MM/dd")</a></td>
+                            <td class="text-nowrap"><a asp-page="/Timesheet/Index" asp-route-month="@c.Month" asp-route-emp="@c.EmployeeNo" asp-fragment="o@(c.OrderNo)-d@(c.Date.Day)">@c.Date.ToString("yyyy/MM/dd")</a><div class="small text-muted">@c.OrderName</div></td>
                             <td>
                                 <table class="table table-sm table-bordered diff-table mb-0 bg-white">
                                     <tr><th></th><th class="fw-normal text-muted">補正前</th><th class="fw-normal text-muted">補正後</th></tr>

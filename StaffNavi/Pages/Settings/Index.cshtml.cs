@@ -10,11 +10,17 @@ namespace StaffNavi.Pages.Settings
         [BindProperty]
         public LaborSettings Input { get; set; } = new();
 
-        public void OnGet() => Input = repo.GetSettings();
+        public List<WorkOrder> Orders { get; private set; } = [];
+
+        public void OnGet()
+        {
+            Input = repo.GetSettings();
+            Orders = repo.GetOrders();
+        }
 
         public IActionResult OnPostSave()
         {
-            if (string.IsNullOrWhiteSpace(Input.CompanyName) || Input.DailyStandardMinutes <= 0 || Input.PaidLeaveMinutes < 0 || Input.PayDayOfMonth is < 1 or > 31)
+            if (string.IsNullOrWhiteSpace(Input.CompanyName) || Input.PayDayOfMonth is < 1 or > 31)
             {
                 TempData["Error"] = "入力内容を確認してください。";
                 return RedirectToPage();

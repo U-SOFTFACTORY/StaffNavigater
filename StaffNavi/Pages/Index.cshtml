@@ -20,9 +20,9 @@
         <div class="kpi">
             <span class="kpi-icon green">@Icons.Svg("users", 28)</span>
             <div>
-                <div class="kpi-label">対象スタッフ数</div>
+                <div class="kpi-label">勤務スタッフ数@(latest != null ? $"（{Fmt.Month(latest.Month)}）" : "")</div>
                 <div class="kpi-value">@Model.StaffCount<small>名</small></div>
-                <div class="kpi-note">@Model.SiteCount 拠点</div>
+                <div class="kpi-note">@Model.SiteCount SS／掛け持ち @Model.MultiSiteCount 名</div>
             </div>
         </div>
     </div>
@@ -30,9 +30,9 @@
         <div class="kpi">
             <span class="kpi-icon blue">@Icons.Svg("database", 28)</span>
             <div>
-                <div class="kpi-label">取込済み勤怠データ</div>
+                <div class="kpi-label">取込済みデータ</div>
                 <div class="kpi-value">@Model.MonthCount<small>か月分</small></div>
-                <div class="kpi-note">最新：@(latest != null ? Fmt.Month(latest.Month) : "なし")</div>
+                <div class="kpi-note">タイムシート（最新：@(latest != null ? Fmt.Month(latest.Month) : "なし")）／給与計算書 @Model.PayrollCount か月</div>
             </div>
         </div>
     </div>
@@ -62,15 +62,15 @@
     <div class="col-xl-7">
         <div class="panel h-100">
             <div class="panel-title"><h2>労務資料作成</h2></div>
-            <p class="text-muted small">取り込んだ勤怠データから、各種労務資料を作成できます。</p>
+            <p class="text-muted small">スタッフナビゲーターのタイムシート・給与計算書から、各種労務資料を作成できます。</p>
             <div class="tile-grid">
                 <a class="tile" asp-page="/Timesheet/Index">
                     <span class="tile-head">@Icons.Svg("calendar", 22, "green") 勤務表</span>
-                    <span class="tile-sub">出勤簿・日別の勤務実績</span>
+                    <span class="tile-sub">受注ごとの勤務表（実績）・出勤簿</span>
                 </a>
                 <a class="tile" asp-page="/Ledger/Index">
                     <span class="tile-head">@Icons.Svg("ledger", 22, "blue") 賃金台帳</span>
-                    <span class="tile-sub">月別の支給・控除</span>
+                    <span class="tile-sub">給与計算書から1年分を自動作成</span>
                 </a>
                 <a class="tile" asp-page="/Corrections/Index">
                     <span class="tile-head">@Icons.Svg("history", 22, "purple") 補正履歴</span>
@@ -105,14 +105,14 @@
         <div class="table-wrap">
             <table class="table table-app">
                 <thead>
-                    <tr><th>スタッフ名</th><th>拠点</th><th>勤務日</th><th>勤務内容</th><th>確認内容</th><th></th></tr>
+                    <tr><th>スタッフ名</th><th>受注（就業先・勤務帯）</th><th>就業日</th><th>勤務内容</th><th>確認内容</th><th></th></tr>
                 </thead>
                 <tbody>
-                    @foreach (var (staff, day) in Model.Alerts)
+                    @foreach (var (staff, sheet, day) in Model.Alerts)
                     {
                         <tr>
                             <td>@staff.Staff.Name</td>
-                            <td>@staff.Staff.Site</td>
+                            <td>@sheet.Order.Name</td>
                             <td>@Fmt.Day(day.Date)</td>
                             <td>@day.Effective?.Describe()</td>
                             <td>
@@ -122,7 +122,7 @@
                                 }
                             </td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-outline-primary" asp-page="/Timesheet/Index" asp-route-month="@latest!.Month" asp-route-emp="@staff.Staff.EmployeeNo" asp-fragment="d@(day.Date.Day)">確認・補正</a>
+                                <a class="btn btn-sm btn-outline-primary" asp-page="/Timesheet/Index" asp-route-month="@latest!.Month" asp-route-emp="@staff.Staff.EmployeeNo" asp-fragment="o@(sheet.Order.OrderNo)-d@(day.Date.Day)">確認・補正</a>
                             </td>
                         </tr>
                     }
@@ -173,7 +173,7 @@
                         {
                             <tr>
                                 <td class="text-nowrap">@Fmt.DateTime(b.ImportedAt)</td>
-                                <td><span class="pill @(b.Kind == ImportKind.Attendance ? "pill-blue" : "pill-gray")">@b.Kind.Label()</span></td>
+                                <td><span class="pill @b.Kind.Pill()">@b.Kind.Label()</span></td>
                                 <td class="small"><a asp-page="/Import/Detail" asp-route-id="@b.Id">@b.FileName</a></td>
                                 <td class="num">@b.RowCount</td>
                             </tr>

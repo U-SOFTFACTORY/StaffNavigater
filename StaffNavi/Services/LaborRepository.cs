@@ -10,9 +10,20 @@ namespace StaffNavi.Services
         private const string CorrectionsFile = "corrections.json";
         private const string LogsFile = "logs.json";
         private const string SettingsFile = "settings.json";
+        private const string OrdersFile = "orders.json";
+        private const string VersionFile = "version.json";
+
+        /// <summary>保存データの形式のバージョン（形式を変えたら上げる。古い形式のデータは起動時に作り直す）</summary>
+        public const int DataVersion = 2;
         private const int MaxLogs = 3000;
 
-        public bool IsInitialized => store.Exists(BatchesFile);
+        public bool IsInitialized => store.Exists(BatchesFile) && store.Read(VersionFile, () => 0) == DataVersion;
+
+        public void MarkInitialized() => store.Write(VersionFile, DataVersion);
+
+        public List<WorkOrder> GetOrders() => store.Read(OrdersFile, () => new List<WorkOrder>());
+
+        public void SaveOrders(List<WorkOrder> orders) => store.Write(OrdersFile, orders);
 
         public List<StaffMember> GetStaff() => store.Read(StaffFile, () => new List<StaffMember>());
 

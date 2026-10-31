@@ -3,20 +3,27 @@ using StaffNavi.Models;
 namespace StaffNavi.Services
 {
     /// <summary>
-    /// 1日分の労働時間。区分はスタッフナビゲーターの単価区分（基本／普通残／深夜／深夜残／休出）に合わせ、互いに重複しない。
+    /// 1日分の労働時間。区分はスタッフナビゲーターのタイムシートの時間区分（基本／普通残／深夜／深夜残／休出）に合わせ、互いに重複しない。
     /// </summary>
-    public record DayCalc(int WorkMinutes, int BasicMinutes, int OvertimeMinutes, int NightMinutes, int NightOvertimeMinutes, int HolidayMinutes)
+    public record DayCalc(int WorkMinutes, int BasicMinutes, int OvertimeMinutes, int NightMinutes, int NightOvertimeMinutes, int HolidayMinutes, int PaidLeaveMinutes)
     {
-        public static readonly DayCalc Empty = new(0, 0, 0, 0, 0, 0);
+        public static readonly DayCalc Empty = new(0, 0, 0, 0, 0, 0, 0);
+
+        /// <summary>タイムシートの「合計」（労働時間＋有給時間）</summary>
+        public int TotalMinutes => WorkMinutes + PaidLeaveMinutes;
     }
 
     public class MonthSummary
     {
+        /// <summary>出勤日数（複数の受注で勤務した日も1日と数える）</summary>
         public int WorkDays { get; set; }
         public int HolidayWorkDays { get; set; }
-        public int PaidLeaveDays { get; set; }
         public int AbsenceDays { get; set; }
-        public int DayOffDays { get; set; }
+        public decimal PaidLeaveDays { get; set; }
+        public int SpecialLeaveDays { get; set; }
+        public int Leave2Days { get; set; }
+        public int Leave3Days { get; set; }
+        public int Leave4Days { get; set; }
         public int WorkMinutes { get; set; }
         /// <summary>基本時間</summary>
         public int BasicMinutes { get; set; }
@@ -30,97 +37,90 @@ namespace StaffNavi.Services
         public int HolidayMinutes { get; set; }
         /// <summary>有給時間</summary>
         public int PaidLeaveMinutes { get; set; }
+        public int BreakMinutes { get; set; }
         public int WarningCount { get; set; }
         public int CorrectionCount { get; set; }
 
         public int AttendanceDays => WorkDays + HolidayWorkDays;
 
+        public int TotalMinutes => WorkMinutes + PaidLeaveMinutes;
+
         /// <summary>時間外労働の合計（普通残＋深夜残）</summary>
         public int TotalOvertimeMinutes => OvertimeMinutes + NightOvertimeMinutes;
     }
 
-    /// <summary>1か月分の賃金（項目名はスタッフナビゲーターの賃金台帳に合わせる）</summary>
-    public class WageResult
-    {
-        /// <summary>基本</summary>
-        public long BasicPay { get; set; }
-        /// <summary>普通残</summary>
-        public long OvertimePay { get; set; }
-        /// <summary>深夜</summary>
-        public long NightPay { get; set; }
-        /// <summary>深夜残</summary>
-        public long NightOvertimePay { get; set; }
-        /// <summary>休出</summary>
-        public long HolidayPay { get; set; }
-        /// <summary>有給手当</summary>
-        public long PaidLeavePay { get; set; }
-        /// <summary>交通費非課税</summary>
-        public long CommuteNonTaxable { get; set; }
-        public int Dependents { get; set; }
-        public long HealthInsurance { get; set; }
-        public long CareInsurance { get; set; }
-        public long Pension { get; set; }
-        public long EmploymentInsurance { get; set; }
-        public long IncomeTax { get; set; }
-        public long ResidentTax { get; set; }
-
-        /// <summary>課税支給額</summary>
-        public long TaxablePay => BasicPay + OvertimePay + NightPay + NightOvertimePay + HolidayPay + PaidLeavePay;
-        /// <summary>非課税支給額</summary>
-        public long NonTaxablePay => CommuteNonTaxable;
-        /// <summary>総支給額</summary>
-        public long GrossPay => TaxablePay + NonTaxablePay;
-        /// <summary>雇用保険対象額</summary>
-        public long EmploymentInsuranceBase => GrossPay;
-        /// <summary>社保合計</summary>
-        public long SocialInsuranceTotal => HealthInsurance + CareInsurance + Pension + EmploymentInsurance;
-        /// <summary>課税対象額</summary>
-        public long TaxableAmount => Math.Max(0, TaxablePay - SocialInsuranceTotal);
-        /// <summary>総控除額</summary>
-        public long TotalDeduction => SocialInsuranceTotal + IncomeTax + ResidentTax;
-        /// <summary>差引支給額</summary>
-        public long NetPay => GrossPay - TotalDeduction;
-    }
-
     /// <summary>
-    /// 労働時間・賃金の計算（デモ用の簡易計算）
+    /// 労働時間の計算と、給与計算書が未取込の月の賃金の試算
     /// </summary>
     public static class LaborCalculator
     {
+        private const int Day = 24 * 60;
         private const int NightStart = 22 * 60;
-        private const int NightEnd = 29 * 60;
-        private const int EarlyNightEnd = 5 * 60;
+        private const int NightEnd = 5 * 60;
 
-        public static DayCalc Calculate(AttendanceValues? values, LaborSettings settings)
+        /// <summary>
+        /// 実際の勤務表（実績）と同じ考え方で時間区分を求める。
+        /// 休憩は深夜帯から差し引き（深夜帯がなければ日中から）、始業から数えて受注の所定労働時間を超えた分を普通残・深夜残とする。
+        /// 例：所定7時間・22:00-32:00・休憩1:00 → 基本1:00／普通残2:00／深夜6:00（合計9:00）
+        /// </summary>
+        public static DayCalc Calculate(AttendanceValues? values, WorkOrder order, decimal paidLeaveHoursPerDay = 8)
         {
-            if (values == null || !values.Kind.IsWorking() || values.Start == null || values.End == null)
+            var paid = PaidLeaveMinutes(values?.Kind, paidLeaveHoursPerDay);
+            if (values == null || !values.Kind.HasTimes() || values.Start == null || values.End == null)
             {
-                return DayCalc.Empty;
+                return DayCalc.Empty with { PaidLeaveMinutes = paid };
             }
-            var (start, end) = ToMinutes(values.Start.Value, values.End.Value);
-            var work = Math.Max(0, end - start - values.BreakMinutes);
+            var start = values.Start.Value;
+            var end = values.End.Value <= start ? values.End.Value + Day : values.End.Value;
+            var minutes = new List<bool>(end - start);
+            for (var t = start; t < end; t++)
+            {
+                minutes.Add(IsNight(t));
+            }
+            RemoveBreak(minutes, values.BreakMinutes);
+            var work = minutes.Count;
             if (values.Kind == DayKind.HolidayWork)
             {
-                return new DayCalc(work, 0, 0, 0, 0, work);
+                return new DayCalc(work, 0, 0, 0, 0, work, paid);
             }
-            // 休憩は所定時間内に取得し、時間外は勤務の最後に発生したものとして深夜残を求める
-            var overtime = Math.Max(0, work - settings.DailyStandardMinutes);
-            var nightOvertime = Night(Math.Max(start, end - overtime), end);
-            var night = Math.Min(Night(start, end) - nightOvertime, work - overtime);
-            return new DayCalc(work, work - overtime - night, overtime - nightOvertime, night, nightOvertime, 0);
+            var standard = Math.Max(0, order.StandardMinutes - paid);
+            int basic = 0, overtime = 0, night = 0, nightOvertime = 0;
+            for (var i = 0; i < minutes.Count; i++)
+            {
+                var over = i >= standard;
+                if (minutes[i])
+                {
+                    if (over) nightOvertime++; else night++;
+                }
+                else
+                {
+                    if (over) overtime++; else basic++;
+                }
+            }
+            return new DayCalc(work, basic, overtime, night, nightOvertime, 0, paid);
         }
+
+        public static int PaidLeaveMinutes(DayKind? kind, decimal hoursPerDay) => kind switch
+        {
+            DayKind.PaidLeave => (int)(hoursPerDay * 60),
+            DayKind.HalfPaidLeave => (int)(hoursPerDay * 30),
+            _ => 0,
+        };
 
         public static List<string> Validate(AttendanceValues? values, DayCalc calc)
         {
             var warnings = new List<string>();
-            if (values == null || !values.Kind.IsWorking())
+            if (values == null || !values.Kind.HasTimes())
             {
                 return warnings;
             }
             if (values.Start == null || values.End == null)
             {
-                warnings.Add(values.Start == null && values.End == null ? "出勤・退勤時刻が未入力です（打刻漏れ）" :
-                    values.Start == null ? "出勤時刻が未入力です（打刻漏れ）" : "退勤時刻が未入力です（打刻漏れ）");
+                if (values.Kind.RequiresTimes() || values.Start != null || values.End != null)
+                {
+                    warnings.Add(values.Start == null && values.End == null ? "始業・終業が未入力です（打刻漏れ）" :
+                        values.Start == null ? "始業が未入力です（打刻漏れ）" : "終業が未入力です（打刻漏れ）");
+                }
                 return warnings;
             }
             if (calc.WorkMinutes > 480 && values.BreakMinutes < 60)
@@ -138,53 +138,127 @@ namespace StaffNavi.Services
             return warnings;
         }
 
-        public static WageResult CalculateWage(StaffMember staff, MonthSummary summary, LaborSettings settings, DateOnly month)
+        /// <summary>
+        /// 給与計算書が未取込の月の試算（デモ用の簡易計算）。単価・交通費は受注ごと、社会保険料は等級の標準報酬月額×料率で求める。
+        /// </summary>
+        public static LedgerMonth Estimate(StaffMonth staffMonth, LaborSettings settings, DateOnly payDate, DateOnly periodStart, DateOnly periodEnd)
         {
-            decimal wage = staff.HourlyWage;
-            var result = new WageResult
+            var staff = staffMonth.Staff;
+            var sum = staffMonth.Summary;
+            var ledger = LedgerMonth.FromSummary(staff, sum, payDate, periodStart, periodEnd);
+            ledger.IsEstimate = true;
+            foreach (var sheet in staffMonth.Sheets)
             {
-                BasicPay = Floor(summary.BasicMinutes / 60m * wage),
-                OvertimePay = Floor(summary.OvertimeMinutes / 60m * wage * settings.OvertimeRate),
-                NightPay = Floor(summary.NightMinutes / 60m * wage * (1 + settings.NightRate)),
-                NightOvertimePay = Floor(summary.NightOvertimeMinutes / 60m * wage * (settings.OvertimeRate + settings.NightRate)),
-                HolidayPay = Floor(summary.HolidayMinutes / 60m * wage * settings.HolidayRate),
-                PaidLeavePay = Floor(summary.PaidLeaveMinutes / 60m * wage),
-                CommuteNonTaxable = (long)summary.AttendanceDays * staff.CommuteAllowancePerDay,
-                Dependents = staff.Dependents,
-            };
-            var gross = result.GrossPay;
-            if (gross == 0)
-            {
-                return result;
+                decimal wage = sheet.Order.HourlyWage;
+                var s = sheet.Summary;
+                ledger.BasicPay += Floor(s.BasicMinutes / 60m * wage);
+                ledger.OvertimePay += Floor(s.OvertimeMinutes / 60m * wage * settings.OvertimeRate);
+                ledger.NightPay += Floor(s.NightMinutes / 60m * wage * (1 + settings.NightRate));
+                ledger.NightOvertimePay += Floor(s.NightOvertimeMinutes / 60m * wage * (settings.OvertimeRate + settings.NightRate));
+                ledger.HolidayPay += Floor(s.HolidayMinutes / 60m * wage * settings.HolidayRate);
+                ledger.PaidLeavePay += Floor(s.PaidLeaveMinutes / 60m * wage);
+                ledger.CommuteNonTaxable += (long)s.AttendanceDays * sheet.Order.CommutePerDay;
             }
-            result.HealthInsurance = Round(gross * settings.HealthInsuranceRate);
-            result.CareInsurance = staff.AgeAt(month.AddMonths(1).AddDays(-1)) is >= 40 and < 65 ? Round(gross * settings.CareInsuranceRate) : 0;
-            result.Pension = Round(gross * settings.PensionRate);
-            result.EmploymentInsurance = Round(gross * settings.EmploymentInsuranceRate);
-            result.IncomeTax = Floor(result.TaxableAmount * settings.IncomeTaxRate * (1 - Math.Min(staff.Dependents, 7) * 0.1m));
-            result.ResidentTax = staff.ResidentTax;
-            return result;
+            ledger.TaxablePay = ledger.BasicPay + ledger.OvertimePay + ledger.NightPay + ledger.NightOvertimePay + ledger.HolidayPay + ledger.PaidLeavePay;
+            ledger.NonTaxablePay = ledger.CommuteNonTaxable;
+            ledger.GrossPay = ledger.TaxablePay + ledger.NonTaxablePay;
+            if (ledger.GrossPay == 0)
+            {
+                return ledger;
+            }
+            ledger.EmploymentInsuranceBase = ledger.GrossPay;
+            if (staff.HealthInsured)
+            {
+                var standard = StandardRemuneration.Health(staff.HealthGrade);
+                ledger.HealthInsurance = Round(standard * settings.HealthInsuranceRate);
+                ledger.CareInsurance = staff.CareInsured ? Round(standard * settings.CareInsuranceRate) : 0;
+            }
+            if (staff.PensionInsured)
+            {
+                ledger.Pension = Round(StandardRemuneration.Pension(staff.PensionGrade) * settings.PensionRate);
+            }
+            ledger.EmploymentInsurance = staff.EmploymentInsured ? Floor(ledger.GrossPay * settings.EmploymentInsuranceRate) : 0;
+            ledger.SocialInsuranceTotal = ledger.HealthInsurance + ledger.CareInsurance + ledger.Pension + ledger.EmploymentInsurance;
+            ledger.TaxableAmount = Math.Max(0, ledger.TaxablePay - ledger.SocialInsuranceTotal);
+            ledger.IncomeTax = staff.TaxCategory == "乙欄"
+                ? Floor(ledger.TaxableAmount * settings.IncomeTaxRateOtsu)
+                : staff.TaxCategory == "無税" ? 0 : Floor(ledger.TaxableAmount * settings.IncomeTaxRate * (1 - Math.Min(staff.Dependents, 7) * 0.1m));
+            ledger.ResidentTax = staff.ResidentTax;
+            ledger.TotalDeduction = ledger.SocialInsuranceTotal + ledger.IncomeTax + ledger.ResidentTax;
+            ledger.NetPay = ledger.GrossPay - ledger.TotalDeduction;
+            return ledger;
         }
 
-        private static (int Start, int End) ToMinutes(TimeOnly start, TimeOnly end)
+        private static bool IsNight(int minute)
         {
-            var s = start.Hour * 60 + start.Minute;
-            var e = end.Hour * 60 + end.Minute;
-            if (e <= s)
-            {
-                e += 24 * 60;
-            }
-            return (s, e);
+            var t = minute % Day;
+            return t >= NightStart || t < NightEnd;
         }
 
-        private static int Night(int start, int end) =>
-            Overlap(start, end, 0, EarlyNightEnd) + Overlap(start, end, NightStart, NightEnd);
+        /// <summary>休憩分を深夜帯の最初から差し引く（深夜帯が休憩より短い場合は勤務の中間から差し引く）</summary>
+        private static void RemoveBreak(List<bool> minutes, int breakMinutes)
+        {
+            var remaining = Math.Min(Math.Max(0, breakMinutes), minutes.Count);
+            if (remaining == 0)
+            {
+                return;
+            }
+            if (minutes.Count(m => m) >= remaining)
+            {
+                var first = minutes.IndexOf(true);
+                for (var i = first; i < minutes.Count && remaining > 0;)
+                {
+                    if (minutes[i])
+                    {
+                        minutes.RemoveAt(i);
+                        remaining--;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+                return;
+            }
+            var middle = Math.Max(0, (minutes.Count - remaining) / 2);
+            minutes.RemoveRange(middle, remaining);
+        }
 
-        private static int Overlap(int start, int end, int rangeStart, int rangeEnd) =>
-            Math.Max(0, Math.Min(end, rangeEnd) - Math.Max(start, rangeStart));
+        public static long Floor(decimal value) => (long)Math.Floor(value);
 
-        private static long Floor(decimal value) => (long)Math.Floor(value);
+        public static long Round(decimal value) => (long)Math.Round(value, MidpointRounding.AwayFromZero);
+    }
 
-        private static long Round(decimal value) => (long)Math.Round(value, MidpointRounding.AwayFromZero);
+    /// <summary>標準報酬月額（健康保険は1～50等級、厚生年金は1～32等級）</summary>
+    public static class StandardRemuneration
+    {
+        private static readonly int[] HealthTable =
+        [
+            58_000, 68_000, 78_000, 88_000, 98_000, 104_000, 110_000, 118_000, 126_000, 134_000,
+            142_000, 150_000, 160_000, 170_000, 180_000, 190_000, 200_000, 220_000, 240_000, 260_000,
+            280_000, 300_000, 320_000, 340_000, 360_000, 380_000, 410_000, 440_000, 470_000, 500_000,
+            530_000, 560_000, 590_000, 620_000, 650_000, 680_000, 710_000, 750_000, 790_000, 830_000,
+            880_000, 930_000, 980_000, 1_030_000, 1_090_000, 1_150_000, 1_210_000, 1_270_000, 1_330_000, 1_390_000,
+        ];
+
+        public static int Health(int grade) => HealthTable[Math.Clamp(grade, 1, 50) - 1];
+
+        /// <summary>厚生年金の等級 n は健康保険の等級 n+3 と同じ金額（上限は32等級 650,000円）</summary>
+        public static int Pension(int grade) => HealthTable[Math.Clamp(grade, 1, 32) + 2];
+
+        /// <summary>報酬月額に対応する健康保険の等級（試算データ作成用）</summary>
+        public static int HealthGradeFor(long monthly)
+        {
+            for (var i = 0; i < HealthTable.Length - 1; i++)
+            {
+                if (monthly < (HealthTable[i] + HealthTable[i + 1]) / 2)
+                {
+                    return i + 1;
+                }
+            }
+            return 50;
+        }
+
+        public static int PensionGradeFor(int healthGrade) => Math.Clamp(healthGrade - 3, 1, 32);
     }
 }

@@ -5,9 +5,10 @@ using StaffNavi.Services;
 
 namespace StaffNavi.Pages.Import
 {
-    public class IndexModel(LaborRepository repo, LaborService labor, CsvImportService importer) : PageModel
+    public class IndexModel(LaborRepository repo, LaborService labor, CsvImportService importer, DemoSeeder seeder) : PageModel
     {
-        private const long MaxFileSize = 5 * 1024 * 1024;
+        // スタッフ全データCSVは約1万人で13MBほどになるため、余裕をもって20MBまでとする
+        private const long MaxFileSize = 20 * 1024 * 1024;
 
         public List<ImportBatch> Batches { get; private set; } = [];
         public HashSet<string> EffectiveIds { get; private set; } = [];
@@ -15,7 +16,7 @@ namespace StaffNavi.Pages.Import
         public void OnGet()
         {
             Batches = repo.GetBatches().OrderByDescending(b => b.ImportedAt).ToList();
-            EffectiveIds = labor.GetEffectiveBatches().Select(b => b.Id).ToHashSet();
+            EffectiveIds = labor.GetEffectiveBatchIds();
         }
 
         public async Task<IActionResult> OnPostUploadAsync(IFormFile? file)
@@ -27,7 +28,7 @@ namespace StaffNavi.Pages.Import
             }
             if (file.Length > MaxFileSize)
             {
-                TempData["Error"] = "ファイルサイズが大きすぎます（5MBまで）。";
+                TempData["Error"] = "ファイルサイズが大きすぎます（20MBまで）。";
                 return RedirectToPage();
             }
             if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
@@ -43,13 +44,11 @@ namespace StaffNavi.Pages.Import
             return RedirectToPage("/Import/Preview", new { token = pending.Token });
         }
 
-        public IActionResult OnGetSample(string kind)
+        public IActionResult OnGetSample(string kind) => kind switch
         {
-            if (kind == "staff")
-            {
-                return File(DemoSeeder.ToShiftJis(DemoSeeder.StaffCsv(DemoSeeder.CreateStaff())), "text/csv", "スタッフ情報_サンプル.csv");
-            }
-            return File(DemoSeeder.SampleAttendanceCsv(), "text/csv", DemoSeeder.SampleAttendanceFileName);
-        }
+            "staff" => File(DemoSeeder.SampleStaffCsv(), "text/csv", "staff 全データ_サンプル.csv"),
+            "payroll" => File(seeder.SamplePayrollCsv(), "text/csv", DemoSeeder.SamplePayrollFileName),
+            _ => File(DemoSeeder.SampleTimesheetCsv(), "text/csv", DemoSeeder.SampleTimesheetFileName),
+        };
     }
 }

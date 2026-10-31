@@ -20,11 +20,15 @@
         <div class="stat-chip"><span class="label">種類</span><span class="value">@b.Kind.Label()</span></div>
         @if (b.TargetMonth != null)
         {
-            <div class="stat-chip"><span class="label">対象月</span><span class="value">@Fmt.Month(b.TargetMonth)</span></div>
+            <div class="stat-chip"><span class="label">対象月</span><span class="value">@Fmt.Month(b.TargetMonth)@(b.Kind == ImportKind.Payroll ? "支給" : "")</span></div>
         }
         <div class="stat-chip"><span class="label">取込日時</span><span class="value">@Fmt.DateTime(b.ImportedAt)</span></div>
         <div class="stat-chip"><span class="label">取込者</span><span class="value">@b.ImportedBy</span></div>
         <div class="stat-chip"><span class="label">件数</span><span class="value">@b.RowCount 件</span></div>
+        @if (b.OrderNos.Count > 0)
+        {
+            <div class="stat-chip"><span class="label">受注</span><span class="value">@string.Join("・", b.OrderNos)</span></div>
+        }
         @if (b.Kind == ImportKind.Attendance)
         {
             <div class="stat-chip"><span class="label">補正（有効）</span><span class="value">@Model.CorrectionCount 件</span></div>

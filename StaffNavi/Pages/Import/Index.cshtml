@@ -19,7 +19,7 @@
             <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
                 <div class="mb-3">
                     <input class="form-control form-control-lg" type="file" name="file" accept=".csv" required />
-                    <div class="form-text">勤怠実績CSV／スタッフ情報CSVを自動で判別します。文字コードはShift_JIS・UTF-8のどちらにも対応しています。</div>
+                    <div class="form-text">タイムシート／スタッフ全データ／給与計算書のCSVを、1行目の項目名から自動で判別します。スタッフナビゲーターから出力したままの形式（Shift_JIS）で取り込めます（20MBまで）。</div>
                 </div>
                 <button class="btn btn-primary px-4" type="submit">@Icons.Svg("upload", 16) 読み込んで内容を確認</button>
             </form>
@@ -27,23 +27,26 @@
                 @Icons.Svg("help", 18)
                 <div>
                     この時点ではまだ登録されません。次の画面で、取込件数・エラー・要確認データを確認してから取込を確定します。
-                    <div class="mt-2">
-                        デモ用のサンプル：
-                        <a asp-page-handler="Sample" asp-route-kind="attendance">@Icons.Svg("download", 14) @DemoSeeder.SampleAttendanceFileName</a>
-                        <span class="mx-1">／</span>
-                        <a asp-page-handler="Sample" asp-route-kind="staff">@Icons.Svg("download", 14) スタッフ情報_サンプル.csv</a>
-                    </div>
+                    <div class="mt-2">デモ用のサンプル（いただいた実データと同じ形式の架空データ）：</div>
+                    <ul class="mb-0 mt-1 ps-3">
+                        <li><a asp-page-handler="Sample" asp-route-kind="timesheet">@Icons.Svg("download", 14) @DemoSeeder.SampleTimesheetFileName</a>　<span class="text-muted">10月から始まったSSの受注（A勤・B勤）。取り込むと10月の勤務表に追加されます</span></li>
+                        <li><a asp-page-handler="Sample" asp-route-kind="payroll">@Icons.Svg("download", 14) @DemoSeeder.SamplePayrollFileName</a>　<span class="text-muted">10月就業分の給与計算書。取り込むと賃金台帳の11月が「試算」から「確定」になります</span></li>
+                        <li><a asp-page-handler="Sample" asp-route-kind="staff">@Icons.Svg("download", 14) staff 全データ_サンプル.csv</a>　<span class="text-muted">スタッフ全データ（202項目）</span></li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-xl-5">
         <div class="panel h-100">
-            <div class="panel-title"><h2>取込できるCSV</h2></div>
-            <h3 class="h6 fw-bold">勤怠実績CSV（1ファイル1か月分）</h3>
-            <p class="small text-muted mb-3">@string.Join("、", CsvImportService.AttendanceHeaders)</p>
-            <h3 class="h6 fw-bold">スタッフ情報CSV</h3>
-            <p class="small text-muted mb-3">@string.Join("、", CsvImportService.StaffHeaders)</p>
+            <div class="panel-title"><h2>取込できるCSV（スタッフナビゲーターの出力形式）</h2></div>
+            <h3 class="h6 fw-bold">@Icons.Svg("calendar", 16, "blue") タイムシート（受注ごと・日別の実績）</h3>
+            <p class="small text-muted mb-1">@string.Join("、", CsvImportService.TimesheetHeaders)</p>
+            <p class="small mb-3">受注（SSの勤務帯）ごとに出力したファイルを、何回かに分けて取り込めます。夜勤など日をまたぐ勤務は 32:00 のように表します。</p>
+            <h3 class="h6 fw-bold">@Icons.Svg("users", 16, "blue") スタッフ全データ（202項目）</h3>
+            <p class="small text-muted mb-3">うち、@string.Join("、", CsvImportService.StaffHeaders) を使用します。</p>
+            <h3 class="h6 fw-bold">@Icons.Svg("ledger", 16, "blue") 給与計算書（76項目・支給月ごと）</h3>
+            <p class="small text-muted mb-3">ｽﾀｯﾌ番号、ｽﾀｯﾌ氏名、出勤日数…基本時間…総支給額…差引支給額、支払日、支払方法。賃金台帳の確定値として使用します。</p>
             <div class="note-box">
                 @Icons.Svg("shield", 18)
                 <div>取り込んだデータは原本として保持し、変更しません。補正は補正履歴として別に記録されます。</div>
@@ -57,26 +60,24 @@
     <div class="table-wrap">
         <table class="table table-app">
             <thead>
-                <tr><th>取込日時</th><th>種類</th><th>対象月</th><th>ファイル名</th><th class="num">件数</th><th class="num">警告</th><th>文字コード</th><th>取込者</th><th>使用状況</th><th></th></tr>
+                <tr><th>取込日時</th><th>種類</th><th>対象月</th><th>受注</th><th>ファイル名</th><th class="num">件数</th><th class="num">警告</th><th>文字コード</th><th>取込者</th><th>使用状況</th><th></th></tr>
             </thead>
             <tbody>
                 @foreach (var b in Model.Batches)
                 {
                     <tr>
                         <td class="text-nowrap">@Fmt.DateTime(b.ImportedAt)</td>
-                        <td><span class="pill @(b.Kind == ImportKind.Attendance ? "pill-blue" : "pill-gray")">@b.Kind.Label()</span></td>
-                        <td>@(b.TargetMonth != null ? Fmt.Month(b.TargetMonth) : "-")</td>
+                        <td><span class="pill @b.Kind.Pill()">@b.Kind.Label()</span></td>
+                        <td class="text-nowrap">@(b.TargetMonth != null ? Fmt.Month(b.TargetMonth) + (b.Kind == ImportKind.Payroll ? "支給" : "") : "-")</td>
+                        <td class="small">@(b.OrderNos.Count > 0 ? $"{b.OrderNos.Count}件" : "")</td>
                         <td>@b.FileName</td>
                         <td class="num">@b.RowCount</td>
                         <td class="num">@if (b.WarningCount > 0) { <span class="pill pill-orange">@b.WarningCount</span> } else { <span>0</span> }</td>
                         <td>@b.Encoding</td>
                         <td>@b.ImportedBy</td>
                         <td>
-                            @if (b.Kind == ImportKind.Attendance)
-                            {
-                                if (Model.EffectiveIds.Contains(b.Id)) { <span class="pill pill-green">使用中</span> }
-                                else { <span class="pill pill-gray">新しい取込あり</span> }
-                            }
+                            if (Model.EffectiveIds.Contains(b.Id)) { <span class="pill pill-green">使用中</span> }
+                            else { <span class="pill pill-gray">新しい取込あり</span> }
                         </td>
                         <td class="text-end"><a class="btn btn-sm btn-outline-secondary" asp-page="/Import/Detail" asp-route-id="@b.Id">詳細</a></td>
                     </tr>

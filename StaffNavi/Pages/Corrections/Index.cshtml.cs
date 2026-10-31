@@ -23,7 +23,8 @@ namespace StaffNavi.Pages.Corrections
         public void OnGet()
         {
             Months = repo.GetCorrections().Select(c => c.Month).Union(labor.GetMonths()).Distinct().OrderDescending().ToList();
-            Staff = repo.GetStaff();
+            var names = repo.GetCorrections().Select(c => c.EmployeeNo).ToHashSet();
+            Staff = repo.GetStaff().Where(s => names.Contains(s.EmployeeNo)).OrderBy(s => s.EmployeeNo.PadLeft(8, '0')).ToList();
             Items = repo.GetCorrections()
                 .Where(c => string.IsNullOrEmpty(Month) || c.Month == Month)
                 .Where(c => string.IsNullOrEmpty(Emp) || c.EmployeeNo == Emp)

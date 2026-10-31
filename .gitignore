@@ -443,3 +443,6 @@ appsettings.Secrets.json
 
 # 323MBの府警帳票定義（GitHubの100MB上限を超える）。圧縮版 police-result-reports.json.gz を管理し、アプリはそちらを読む。
 App_Data/AccessAnalysis/CommonMenus/police-result-reports.json
+
+# デモデータ（起動時に自動作成される。実データを誤ってコミットしないよう管理対象外にする）
+StaffNavi/App_Data/

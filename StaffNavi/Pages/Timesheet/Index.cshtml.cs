@@ -20,6 +20,10 @@ namespace StaffNavi.Pages.Timesheet
         [BindProperty(SupportsGet = true)]
         public string? Q { get; set; }
 
+        /// <summary>要確認・掛け持ちのみ表示</summary>
+        [BindProperty(SupportsGet = true)]
+        public string? Filter { get; set; }
+
         public MonthView? View { get; private set; }
         public StaffMonth? Current { get; private set; }
         public List<string> Months { get; private set; } = [];
@@ -29,18 +33,23 @@ namespace StaffNavi.Pages.Timesheet
 
         public void OnGet() => Load();
 
-        public IActionResult OnPostCorrect(string date, DayKind kind, string? start, string? end, int breakMinutes, string? reason, string? evidence)
+        public IActionResult OnPostCorrect(string order, string date, DayKind kind, string? start, string? end, int breakMinutes, string? reason, string? evidence)
         {
             if (Month == null || Emp == null || !DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
             {
                 TempData["Error"] = "補正対象が正しくありません。";
                 return RedirectToPage(new { Month, Emp });
             }
-            TimeOnly? ParseTime(string? text) =>
-                TimeOnly.TryParseExact(text ?? "", ["H:mm", "HH:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t : null;
-
-            var values = new AttendanceValues(kind, ParseTime(start), ParseTime(end), breakMinutes);
-            var error = labor.AddCorrection(Month, Emp, day, values, reason ?? "", evidence, User.Identity?.Name ?? "");
+            int? ParseClock(string? text) => Fmt.TryParseClock(text, out var m) ? m : null;
+            var startMinutes = ParseClock(start);
+            var endMinutes = ParseClock(end);
+            // 終業が始業より前の時刻で入力された場合（例：22:00～8:00）は翌日として扱う
+            if (startMinutes != null && endMinutes != null && endMinutes <= startMinutes && endMinutes < 24 * 60)
+            {
+                endMinutes += 24 * 60;
+            }
+            var values = new AttendanceValues(kind, startMinutes, endMinutes, breakMinutes);
+            var error = labor.AddCorrection(Month, Emp, order, day, values, reason ?? "", evidence, User.Identity?.Name ?? "");
             if (error != null)
             {
                 TempData["Error"] = error;
@@ -49,7 +58,7 @@ namespace StaffNavi.Pages.Timesheet
             {
                 TempData["Message"] = $"{Fmt.Day(day)} の勤務データを補正しました。補正内容は補正履歴に記録されています。";
             }
-            return Redirect(Url.Page("/Timesheet/Index", new { Month, Emp }) + $"#d{day.Day}");
+            return Redirect(Url.Page("/Timesheet/Index", new { Month, Emp }) + $"#o{order}-d{day.Day}");
         }
 
         public IActionResult OnGetCsv()
@@ -59,32 +68,38 @@ namespace StaffNavi.Pages.Timesheet
             {
                 return RedirectToPage();
             }
-            var staff = view.Staff.Where(s => string.IsNullOrEmpty(Site) || s.Staff.Site == Site).ToList();
+            var staff = view.Staff.Where(s => string.IsNullOrEmpty(Site) || s.Workplaces.Contains(Site)).ToList();
             var rows = new List<IEnumerable<object?>>
             {
-                new object?[] { "スタッフ番号", "氏名", "拠点", "勤務日", "曜日", "勤務区分", "出勤時刻", "退勤時刻", "休憩(分)", "労働時間", "普通残", "深夜", "深夜残", "休出", "補正", "補正理由" },
+                new object?[]
+                {
+                    "スタッフ番号", "スタッフ氏名", "受注番号", "受注名称", "就業先", "日付", "曜日", "所定", "区分", "出欠", "始業", "終業", "休憩時",
+                    "有給時", "基本", "普通残", "深夜", "深夜残", "休出", "合計", "補正", "補正理由", "要確認",
+                },
             };
             foreach (var s in staff)
             {
-                foreach (var d in s.Days)
+                foreach (var sheet in s.Sheets.Where(x => string.IsNullOrEmpty(Site) || x.Order.Workplace == Site))
                 {
-                    rows.Add(new object?[]
+                    foreach (var d in sheet.Days.Where(x => x.HasData))
                     {
-                        s.Staff.EmployeeNo, s.Staff.Name, s.Staff.Site, d.Date.ToString("yyyy/MM/dd"), Fmt.Weekday(d.Date),
-                        d.Effective?.Kind.Label(), Fmt.Time(d.Effective?.Start), Fmt.Time(d.Effective?.End),
-                        d.Effective?.Kind.IsWorking() == true ? d.Effective.BreakMinutes : null,
-                        HoursOrEmpty(d.Calc.WorkMinutes), HoursOrEmpty(d.Calc.OvertimeMinutes),
-                        HoursOrEmpty(d.Calc.NightMinutes), HoursOrEmpty(d.Calc.NightOvertimeMinutes), HoursOrEmpty(d.Calc.HolidayMinutes),
-                        d.IsCorrected ? "補正あり" : "", d.Correction?.Reason,
-                    });
+                        var e = d.Effective!;
+                        rows.Add(new object?[]
+                        {
+                            s.Staff.EmployeeNo, s.Staff.Name, sheet.Order.OrderNo, sheet.Order.Name, sheet.Order.Workplace,
+                            d.Date.ToString("yyyy/MM/dd"), Fmt.Weekday(d.Date), d.Calendar, sheet.Order.ShiftLabel, e.Kind.Label(),
+                            Fmt.Clock(e.Start), Fmt.Clock(e.End), d.Calc.WorkMinutes > 0 ? Fmt.HoursOrBlank(e.BreakMinutes) : "",
+                            Fmt.HoursOrBlank(d.Calc.PaidLeaveMinutes), Fmt.HoursOrBlank(d.Calc.BasicMinutes), Fmt.HoursOrBlank(d.Calc.OvertimeMinutes),
+                            Fmt.HoursOrBlank(d.Calc.NightMinutes), Fmt.HoursOrBlank(d.Calc.NightOvertimeMinutes), Fmt.HoursOrBlank(d.Calc.HolidayMinutes),
+                            Fmt.HoursOrBlank(d.Calc.TotalMinutes), d.IsCorrected ? "補正あり" : "", d.Correction?.Reason, string.Join("／", d.Warnings),
+                        });
+                    }
                 }
             }
-            var siteLabel = string.IsNullOrEmpty(Site) ? "全拠点" : Site;
+            var siteLabel = string.IsNullOrEmpty(Site) ? "全就業先" : Site;
             repo.AddLog(User.Identity?.Name ?? "", "資料出力", $"勤務表をExcel（CSV）で出力しました（{Fmt.Month(view.Month)}、{siteLabel}、{staff.Count}名）");
             return File(CsvText.ToExcelBytes(CsvText.Write(rows)), "text/csv", $"勤務表_{view.Month.Replace("-", "")}_{siteLabel}.csv");
         }
-
-        private static string HoursOrEmpty(int minutes) => minutes == 0 ? "" : Fmt.Hours(minutes);
 
         private void Load()
         {
@@ -95,10 +110,11 @@ namespace StaffNavi.Pages.Timesheet
                 return;
             }
             Month = View.Month;
-            Sites = View.Staff.Select(s => s.Staff.Site).Distinct().Order().ToList();
+            Sites = View.Sheets.Select(s => s.Order.Workplace).Distinct().Order().ToList();
             StaffList = View.Staff
-                .Where(s => string.IsNullOrEmpty(Site) || s.Staff.Site == Site)
-                .Where(s => string.IsNullOrWhiteSpace(Q) || Matches(s.Staff, Q.Trim()))
+                .Where(s => string.IsNullOrEmpty(Site) || s.Workplaces.Contains(Site))
+                .Where(s => string.IsNullOrWhiteSpace(Q) || Matches(s, Q.Trim()))
+                .Where(s => Filter switch { "alert" => s.Summary.WarningCount > 0, "multi" => s.Sheets.Count > 1, _ => true })
                 .ToList();
             Current = StaffList.FirstOrDefault(s => s.Staff.EmployeeNo == Emp)
                 ?? View.Staff.FirstOrDefault(s => s.Staff.EmployeeNo == Emp)
@@ -106,14 +122,17 @@ namespace StaffNavi.Pages.Timesheet
             Emp = Current?.Staff.EmployeeNo;
             if (Current != null)
             {
-                CurrentCorrections = Current.Days.SelectMany(d => d.History).OrderByDescending(c => c.CorrectedAt).ToList();
+                CurrentCorrections = Current.AllDays.SelectMany(d => d.History).OrderByDescending(c => c.CorrectedAt).ToList();
             }
         }
 
-        private static bool Matches(StaffMember staff, string q) =>
-            staff.Name.Replace(" ", "").Contains(q.Replace(" ", "").Replace("　", "")) ||
-            staff.Kana.Replace(" ", "").Contains(q.Replace(" ", "").Replace("　", "")) ||
-            staff.EmployeeNo.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-            staff.Site.Contains(q);
+        private static bool Matches(StaffMonth s, string q)
+        {
+            var key = q.Replace(" ", "").Replace("　", "");
+            return s.Staff.Name.Replace(" ", "").Contains(key) ||
+                s.Staff.Kana.Replace(" ", "").Contains(key) ||
+                s.Staff.EmployeeNo.Contains(key) ||
+                s.Sheets.Any(x => x.Order.Workplace.Contains(key) || x.Order.OrderNo.Contains(key));
+        }
     }
 }

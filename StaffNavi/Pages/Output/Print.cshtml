@@ -5,7 +5,8 @@
     ViewData["Title"] = Model.DocumentTitle;
     var s = Model.Settings;
     var printed = $"出力日時：{Fmt.DateTime(Model.PrintedAt)}　出力者：{Model.PrintedBy}";
-    var markNote = "※ 取込データ（スタッフナビゲーターから出力したCSV）から補正した箇所です。補正前の内容・理由・補正者は補正履歴に記録されています。";
+    var markNote = "※ 取込データ（スタッフナビゲーターから出力したタイムシート）から補正した箇所です。補正前の内容・理由・補正者は補正履歴に記録されています。";
+    string H(int minutes) => Fmt.HoursOrBlank(minutes);
 }
 
 @if (Model.Type == "ledger")
@@ -15,74 +16,93 @@
 
 @if (Model.Type == "timesheet")
 {
+    var view = Model.View!;
     foreach (var staff in Model.MonthStaff)
     {
-        var view = Model.View!;
-        var sum = staff.Summary;
-        var marked = Model.Mark && sum.CorrectionCount > 0;
-        <section class="sheet">
-            <h1>出勤簿</h1>
-            <table class="head">
-                <tr>
-                    <th>事業所</th><td>@s.CompanyName　@staff.Staff.Site</td>
-                    <th>対象期間</th><td>@view.FirstDay.ToString("yyyy年M月d日")～@view.LastDay.ToString("M月d日")</td>
-                </tr>
-                <tr>
-                    <th>氏名</th><td>@staff.Staff.Name（@staff.Staff.Kana）</td>
-                    <th>スタッフ番号／雇用区分</th><td>@staff.Staff.EmployeeNo ／ @staff.Staff.EmploymentType</td>
-                </tr>
-            </table>
-            <table class="grid">
-                <thead>
-                    <tr>
-                        <th>日</th><th>曜</th><th>勤務区分</th><th>始業</th><th>終業</th><th>休憩</th>
-                        <th>労働時間</th><th>普通残</th><th>深夜</th><th>深夜残</th><th>休出</th><th>備考</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var d in staff.Days)
-                    {
-                        var e = d.Effective;
-                        var working = e?.Kind.IsWorking() == true;
-                        var cls = d.Date.DayOfWeek == DayOfWeek.Sunday ? "sun" : d.Date.DayOfWeek == DayOfWeek.Saturday ? "sat" : "";
-                        <tr class="@cls">
-                            <td class="center">@d.Date.Day</td>
-                            <td class="center">@Fmt.Weekday(d.Date)</td>
-                            <td class="center">@(e?.Kind.Label() ?? "")</td>
-                            <td class="center">@Fmt.Time(e?.Start)</td>
-                            <td class="center">@Fmt.Time(e?.End)</td>
-                            <td class="num">@(working ? Fmt.Hours(e!.BreakMinutes) : "")</td>
-                            <td class="num">@(working ? Fmt.Hours(d.Calc.WorkMinutes) : "")</td>
-                            <td class="num">@(d.Calc.OvertimeMinutes > 0 ? Fmt.Hours(d.Calc.OvertimeMinutes) : "")</td>
-                            <td class="num">@(d.Calc.NightMinutes > 0 ? Fmt.Hours(d.Calc.NightMinutes) : "")</td>
-                            <td class="num">@(d.Calc.NightOvertimeMinutes > 0 ? Fmt.Hours(d.Calc.NightOvertimeMinutes) : "")</td>
-                            <td class="num">@(d.Calc.HolidayMinutes > 0 ? Fmt.Hours(d.Calc.HolidayMinutes) : "")</td>
-                            <td>@(Model.Mark && d.IsCorrected ? "※" : "")</td>
+        foreach (var sheet in Model.SheetsOf(staff))
+        {
+            var o = sheet.Order;
+            var sum = sheet.Summary;
+            var marked = Model.Mark && sum.CorrectionCount > 0;
+            <section class="sheet timesheet">
+                <h1>タイムシート(給与)　@(view.FirstDay.Month)月度分</h1>
+                <table class="head">
+                    <tr><th>対象期間</th><td>@view.FirstDay.ToString("yyyy/MM/dd") ～ @view.LastDay.ToString("yyyy/MM/dd")</td><th>請負先</th><td>@o.Client</td></tr>
+                    <tr><th>ｽﾀｯﾌ氏名</th><td>@staff.Staff.Name (@staff.Staff.EmployeeNo.PadLeft(8, '0'))</td><th>就業先</th><td>@o.Workplace</td></tr>
+                    <tr><th>受注名称</th><td>@o.Name (@o.OrderNo)</td><th>所在地</th><td>@o.Address</td></tr>
+                    <tr><th>業務内容１</th><td>@o.JobDescription (@o.Area)</td><th>業務内容２</th><td>@o.ShiftName</td></tr>
+                </table>
+                <table class="grid">
+                    <thead>
+                        <tr>
+                            <th>日付</th><th>曜日</th><th>所定</th><th>区分</th><th>出欠</th><th>始業</th><th>終業</th><th>休憩時</th><th>遅早時</th><th>有給時</th>
+                            <th>基本</th><th>普通残</th><th>深夜</th><th>深夜残</th><th>休出</th><th>時間外１</th><th>時間外２</th><th>合計</th><th>備考</th>
                         </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in sheet.Days)
+                        {
+                            var e = d.HasData ? d.Effective : null;
+                            var cls = d.Date.DayOfWeek == DayOfWeek.Sunday ? "sun" : d.Date.DayOfWeek == DayOfWeek.Saturday ? "sat" : "";
+                            <tr class="@cls">
+                                <td class="center">@d.Date.ToString("MM/dd")</td>
+                                <td class="center">@Fmt.Weekday(d.Date)</td>
+                                <td class="center">@d.Calendar</td>
+                                <td class="center">@(e != null ? o.ShiftLabel : "")</td>
+                                <td class="center">@(e?.Kind.Label())</td>
+                                <td class="num">@Fmt.Clock(e?.Start)</td>
+                                <td class="num">@Fmt.Clock(e?.End)</td>
+                                <td class="num">@(d.Calc.WorkMinutes > 0 ? H(e!.BreakMinutes) : "")</td>
+                                <td class="num"></td>
+                                <td class="num">@H(d.Calc.PaidLeaveMinutes)</td>
+                                <td class="num">@H(d.Calc.BasicMinutes)</td>
+                                <td class="num">@H(d.Calc.OvertimeMinutes)</td>
+                                <td class="num">@H(d.Calc.NightMinutes)</td>
+                                <td class="num">@H(d.Calc.NightOvertimeMinutes)</td>
+                                <td class="num">@H(d.Calc.HolidayMinutes)</td>
+                                <td class="num"></td>
+                                <td class="num"></td>
+                                <td class="num">@H(d.Calc.TotalMinutes)</td>
+                                <td class="center">@(Model.Mark && d.IsCorrected ? "※" : "")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="4">合計</th>
+                            <td class="center">@(sum.WorkDays + sum.HolidayWorkDays)日</td>
+                            <td></td><td></td>
+                            <td class="num">@H(sum.BreakMinutes)</td>
+                            <td></td>
+                            <td class="num">@H(sum.PaidLeaveMinutes)</td>
+                            <td class="num">@H(sum.BasicMinutes)</td>
+                            <td class="num">@H(sum.OvertimeMinutes)</td>
+                            <td class="num">@H(sum.NightMinutes)</td>
+                            <td class="num">@H(sum.NightOvertimeMinutes)</td>
+                            <td class="num">@H(sum.HolidayMinutes)</td>
+                            <td></td><td></td>
+                            <td class="num">@H(sum.TotalMinutes)</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="notes">
+                    出勤 @(sum.WorkDays)日／休出 @(sum.HolidayWorkDays)日／有給 @Fmt.Days(sum.PaidLeaveDays)日／欠勤 @(sum.AbsenceDays)日
+                    @if (staff.Sheets.Count > 1)
+                    {
+                        <span>　※ 掛け持ち：このスタッフは @staff.Sheets.Count 件の受注で勤務（全受注の合計 @Fmt.Hours(staff.Summary.TotalMinutes)、出勤 @(staff.Summary.WorkDays)日）</span>
                     }
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <th colspan="3">合計</th>
-                        <td colspan="3">出勤 @(sum.WorkDays)日／休出 @(sum.HolidayWorkDays)日／有給 @(sum.PaidLeaveDays)日／欠勤 @(sum.AbsenceDays)日</td>
-                        <td class="num">@Fmt.Hours(sum.WorkMinutes)</td>
-                        <td class="num">@Fmt.Hours(sum.OvertimeMinutes)</td>
-                        <td class="num">@Fmt.Hours(sum.NightMinutes)</td>
-                        <td class="num">@Fmt.Hours(sum.NightOvertimeMinutes)</td>
-                        <td class="num">@Fmt.Hours(sum.HolidayMinutes)</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
-            @if (marked)
-            {
-                <div class="notes">@markNote</div>
-            }
-            <div class="foot">
-                <span>@printed</span>
-                <span>取込元：@view.Batch.FileName（@Fmt.DateTime(view.Batch.ImportedAt) 取込）／補正反映：@(sum.CorrectionCount)件</span>
-            </div>
-        </section>
+                </div>
+                @if (marked)
+                {
+                    <div class="notes">@markNote</div>
+                }
+                <div class="foot">
+                    <span>@s.CompanyName　@printed</span>
+                    <span>取込元：@sheet.FileName（@Fmt.DateTime(sheet.ImportedAt) 取込）／補正反映：@(sum.CorrectionCount)件</span>
+                </div>
+            </section>
+        }
     }
 }
 else if (Model.Type == "summary")
@@ -100,8 +120,8 @@ else if (Model.Type == "summary")
         <table class="grid">
             <thead>
                 <tr>
-                    <th>スタッフ番号</th><th>氏名</th><th>拠点</th><th>雇用区分</th><th>出勤</th><th>休出</th><th>有給</th><th>欠勤</th>
-                    <th>労働時間</th><th>普通残</th><th>深夜</th><th>深夜残</th><th>休出時間</th><th>備考</th>
+                    <th>ｽﾀｯﾌ番号</th><th>氏名</th><th>就業先</th><th>ｽﾀｯﾌ区分</th><th>出勤</th><th>有給</th><th>欠勤</th>
+                    <th>基本</th><th>普通残</th><th>深夜</th><th>深夜残</th><th>休出</th><th>合計</th><th>備考</th>
                 </tr>
             </thead>
             <tbody>
@@ -111,18 +131,18 @@ else if (Model.Type == "summary")
                     <tr>
                         <td>@x.Staff.EmployeeNo</td>
                         <td>@x.Staff.Name</td>
-                        <td>@x.Staff.Site</td>
-                        <td>@x.Staff.EmploymentType</td>
+                        <td>@string.Join("／", x.Workplaces)</td>
+                        <td>@x.Staff.Category</td>
                         <td class="num">@sum.WorkDays</td>
-                        <td class="num">@sum.HolidayWorkDays</td>
-                        <td class="num">@sum.PaidLeaveDays</td>
+                        <td class="num">@Fmt.Days(sum.PaidLeaveDays)</td>
                         <td class="num">@sum.AbsenceDays</td>
-                        <td class="num">@Fmt.Hours(sum.WorkMinutes)</td>
+                        <td class="num">@Fmt.Hours(sum.BasicMinutes)</td>
                         <td class="num">@Fmt.Hours(sum.OvertimeMinutes)</td>
                         <td class="num">@Fmt.Hours(sum.NightMinutes)</td>
                         <td class="num">@Fmt.Hours(sum.NightOvertimeMinutes)</td>
                         <td class="num">@Fmt.Hours(sum.HolidayMinutes)</td>
-                        <td>@(Model.Mark && sum.CorrectionCount > 0 ? $"※補正{sum.CorrectionCount}件" : "")</td>
+                        <td class="num">@Fmt.Hours(sum.TotalMinutes)</td>
+                        <td>@(x.Sheets.Count > 1 ? "掛持 " : "")@(Model.Mark && sum.CorrectionCount > 0 ? $"※補正{sum.CorrectionCount}件" : "")</td>
                     </tr>
                 }
             </tbody>
@@ -130,14 +150,14 @@ else if (Model.Type == "summary")
                 <tr>
                     <th colspan="4">合計（@(Model.MonthStaff.Count)名）</th>
                     <td class="num">@Model.MonthStaff.Sum(x => x.Summary.WorkDays)</td>
-                    <td class="num">@Model.MonthStaff.Sum(x => x.Summary.HolidayWorkDays)</td>
-                    <td class="num">@Model.MonthStaff.Sum(x => x.Summary.PaidLeaveDays)</td>
+                    <td class="num">@Fmt.Days(Model.MonthStaff.Sum(x => x.Summary.PaidLeaveDays))</td>
                     <td class="num">@Model.MonthStaff.Sum(x => x.Summary.AbsenceDays)</td>
-                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.WorkMinutes))</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.BasicMinutes))</td>
                     <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.OvertimeMinutes))</td>
                     <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.NightMinutes))</td>
                     <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.NightOvertimeMinutes))</td>
                     <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.HolidayMinutes))</td>
+                    <td class="num">@Fmt.Hours(Model.MonthStaff.Sum(x => x.Summary.TotalMinutes))</td>
                     <td></td>
                 </tr>
             </tfoot>
@@ -148,7 +168,7 @@ else if (Model.Type == "summary")
         }
         <div class="foot">
             <span>@printed</span>
-            <span>取込元：@view.Batch.FileName（@Fmt.DateTime(view.Batch.ImportedAt) 取込）</span>
+            <span>取込元：@view.SourceLabel</span>
         </div>
     </section>
 }
@@ -158,10 +178,9 @@ else
     foreach (var (staff, columns) in Model.Ledgers)
     {
         pageNo++;
-        var byMonth = columns.Where(c => c.Staff != null).ToDictionary(c => int.Parse(c.Month[5..]));
-        var months = Enumerable.Range(1, 12).ToList();
-        var staffMonths = byMonth.Values.Select(c => c.Staff!).ToList();
-        var marked = Model.Mark && staffMonths.Any(x => x.Summary.CorrectionCount > 0);
+        var filled = columns.Where(c => c != null).Select(c => c!).ToList();
+        var marked = Model.Mark && filled.Any(x => x.CorrectionCount > 0);
+        var estimated = filled.Any(x => x.IsEstimate);
         var previousGroup = 0;
         <section class="sheet landscape ledger">
             <div class="ledger-title">
@@ -171,17 +190,17 @@ else
             </div>
             <table class="ledger-head">
                 <tr>
-                    <td>ｽﾀｯﾌNo：@staff.EmployeeNo.PadLeft(8, '0')</td>
+                    <td>スタッフ№：@staff.EmployeeNo</td>
                     <td>性別：@staff.Gender</td>
-                    <td>税区分：甲</td>
-                    <td>入社日：@staff.HireDate.ToString("yyyy/MM/dd")</td>
-                    <td>拠点：@staff.Site</td>
+                    <td>税区分：@staff.TaxCategory</td>
+                    <td>入社日：@staff.HireDate?.ToString("yyyy/MM/dd")</td>
+                    <td>ｽﾀｯﾌ区分：@staff.Category</td>
                     <td class="right"></td>
                 </tr>
                 <tr>
-                    <td>ｽﾀｯﾌ名：@staff.Name</td>
+                    <td>スタッフ名：@staff.Name</td>
                     <td colspan="2">生年月日：@(staff.BirthDate?.ToString("yyyy/MM/dd") ?? "")</td>
-                    <td>退社日：</td>
+                    <td>退社日：@staff.RetireDate?.ToString("yyyy/MM/dd")</td>
                     <td></td>
                     <td class="right">@s.CompanyName</td>
                 </tr>
@@ -189,21 +208,22 @@ else
             <table class="grid ledger-grid">
                 <thead>
                     <tr>
-                        <th>@(Model.Year)年1月～@(Model.Year)年12月給与</th>
-                        @foreach (var m in months)
+                        <th class="label">@(Model.Year)年1月～@(Model.Year)年12月給与</th>
+                        @for (var m = 1; m <= 12; m++)
                         {
-                            <th>@(m)月@(Model.Mark && byMonth.TryGetValue(m, out var c) && c.Staff!.Summary.CorrectionCount > 0 ? "※" : "")</th>
+                            var c = columns[m - 1];
+                            <th>@(m)月@(c?.IsEstimate == true ? "(試算)" : "")@(Model.Mark && c?.CorrectionCount > 0 ? "※" : "")</th>
                         }
-                        <th>給与計</th>
+                        <th>合計</th>
                     </tr>
                     <tr>
-                        <th class="label">支払日<br />対象期間</th>
-                        @foreach (var m in months)
+                        <th class="label">支給日<br />対象期間</th>
+                        @foreach (var c in columns)
                         {
                             <td class="center">
-                                @if (byMonth.TryGetValue(m, out var c))
+                                @if (c != null)
                                 {
-                                    @c.View.PayDate.ToString("M/d")<br />@($"{c.View.FirstDay:M/d}～{c.View.LastDay:M/d}")
+                                    @c.PayDate.ToString("M/d")<br />@($"{c.PeriodStart:M/d}～{c.PeriodEnd:M/d}")
                                 }
                             </td>
                         }
@@ -217,22 +237,26 @@ else
                         previousGroup = item.Group;
                         <tr class="@cls">
                             <th>@item.Label</th>
-                            @foreach (var m in months)
+                            @foreach (var c in columns)
                             {
-                                <td class="num">@(byMonth.TryGetValue(m, out var c) ? StaffNavigatorFormat.FormatValue(item, item.Value(c.Staff!)) : "")</td>
+                                <td class="num">@(c != null ? StaffNavigatorFormat.FormatValue(item, c) : "")</td>
                             }
-                            <td class="num">@(staffMonths.Count > 0 ? StaffNavigatorFormat.FormatValue(item, StaffNavigatorFormat.Total(item, staffMonths)) : "")</td>
+                            <td class="num">@(filled.Count > 0 ? StaffNavigatorFormat.Total(item, filled) : "")</td>
                         </tr>
                     }
                 </tbody>
             </table>
+            @if (estimated)
+            {
+                <div class="notes">(試算) の月は給与計算書が未取込のため、勤務表から簡易計算した参考値です。</div>
+            }
             @if (marked)
             {
-                <div class="notes">※ 補正を反映した月です。補正前の内容・理由・補正者は補正履歴に記録されています。</div>
+                <div class="notes">※ 勤務表の補正を反映した月です。補正前の内容・理由・補正者は補正履歴に記録されています。</div>
             }
             <div class="foot">
                 <span>@printed</span>
-                <span>取込元：@string.Join("、", columns.Select(c => c.View.Batch.FileName))</span>
+                <span>取込元：@string.Join("、", filled.Select(c => c.Source).Distinct())</span>
             </div>
         </section>
     }

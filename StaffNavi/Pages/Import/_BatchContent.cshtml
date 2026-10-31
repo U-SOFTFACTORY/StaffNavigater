@@ -1,6 +1,11 @@
 @model BatchData
+@inject LaborRepository Repo
 @{
     var issues = Model.Issues.OrderBy(i => i.Level == ImportIssue.Error ? 0 : 1).ThenBy(i => i.LineNo).ToList();
+    // 大きなファイル（スタッフ全データは約1万行）でも画面が重くならないよう、表示件数を制限する
+    const int MaxRows = 500;
+    var staffNames = Model.Records.Count > 0 ? Repo.GetStaff().ToDictionary(s => s.EmployeeNo, s => s.Name) : [];
+    var orders = Model.Records.Count > 0 ? Repo.GetOrders().ToDictionary(o => o.OrderNo, o => o.Name) : [];
 }
 
 <div class="panel mt-3">
@@ -13,14 +18,14 @@
     {
         <div class="table-wrap" style="max-height: 360px">
             <table class="table table-app">
-                <thead><tr><th>区分</th><th class="num">行</th><th>スタッフ番号</th><th>勤務日</th><th>内容</th></tr></thead>
+                <thead><tr><th>区分</th><th class="num">行</th><th>スタッフ番号</th><th>就業日</th><th>内容</th></tr></thead>
                 <tbody>
-                    @foreach (var issue in issues)
+                    @foreach (var issue in issues.Take(MaxRows))
                     {
                         <tr>
                             <td><span class="pill @(issue.Level == ImportIssue.Error ? "pill-red" : "pill-orange")">@issue.Level</span></td>
                             <td class="num">@(issue.LineNo > 0 ? issue.LineNo : "-")</td>
-                            <td>@issue.EmployeeNo</td>
+                            <td>@issue.EmployeeNo @(issue.EmployeeNo != null && staffNames.TryGetValue(issue.EmployeeNo, out var n) ? n : "")</td>
                             <td>@(issue.Date != null ? Fmt.Day(issue.Date.Value) : "")</td>
                             <td>@issue.Message</td>
                         </tr>
@@ -34,24 +39,59 @@
 @if (Model.Records.Count > 0)
 {
     <div class="panel mt-3">
-        <div class="panel-title"><h2>取込データ（@Model.Records.Count 件）</h2></div>
+        <div class="panel-title"><h2>タイムシート（@Model.Records.Count 件@(Model.Records.Count > MaxRows ? $"、先頭{MaxRows}件を表示" : "")）</h2></div>
         <div class="table-wrap" style="max-height: 480px">
             <table class="table table-app table-sm">
-                <thead><tr><th class="num">行</th><th>スタッフ番号</th><th>氏名</th><th>拠点</th><th>勤務日</th><th>勤務区分</th><th>出勤</th><th>退勤</th><th class="num">休憩(分)</th><th>備考</th></tr></thead>
+                <thead><tr><th class="num">行</th><th>スタッフ番号</th><th>氏名</th><th>受注番号</th><th>受注名称</th><th>就業日</th><th>就業ﾃﾞｰﾀ番号</th><th>出欠状況</th><th>始業時刻</th><th>終業時刻</th><th class="num">休憩時間</th></tr></thead>
                 <tbody>
-                    @foreach (var r in Model.Records)
+                    @foreach (var r in Model.Records.Take(MaxRows))
                     {
                         <tr>
                             <td class="num">@r.LineNo</td>
                             <td>@r.EmployeeNo</td>
-                            <td>@r.Name</td>
-                            <td>@r.Site</td>
+                            <td>@staffNames.GetValueOrDefault(r.EmployeeNo)</td>
+                            <td>@r.OrderNo</td>
+                            <td>@orders.GetValueOrDefault(r.OrderNo)</td>
                             <td>@Fmt.Day(r.Date)</td>
-                            <td>@r.Kind.Label()</td>
-                            <td>@Fmt.Time(r.Start)</td>
-                            <td>@Fmt.Time(r.End)</td>
-                            <td class="num">@(r.Kind.IsWorking() ? r.BreakMinutes : "")</td>
-                            <td>@r.Note</td>
+                            <td>@r.DataNo</td>
+                            <td>@r.Status（@r.Kind.Label()）</td>
+                            <td>@Fmt.Clock(r.Start)</td>
+                            <td>@Fmt.Clock(r.End)</td>
+                            <td class="num">@(r.Kind.HasTimes() ? r.BreakMinutes : "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="small text-muted mt-2">出欠状況は 0＝出勤・1＝欠勤・2＝有給・3＝半給・4＝特休 として読み込みます（0以外は勤務表（実績）の選択肢の並びからの想定のため、要確認）。日をまたぐ終業（例：8:00）は 32:00 に読み替えています。</div>
+    </div>
+}
+
+@if (Model.Staff.Count > 0)
+{
+    <div class="panel mt-3">
+        <div class="panel-title"><h2>スタッフ情報（@Model.Staff.Count 件@(Model.Staff.Count > MaxRows ? $"、先頭{MaxRows}件を表示" : "")）</h2></div>
+        <div class="table-wrap" style="max-height: 480px">
+            <table class="table table-app table-sm">
+                <thead><tr><th>ｽﾀｯﾌ番号</th><th>氏名</th><th>性別</th><th>生年月日</th><th>ｽﾀｯﾌ区分</th><th>入社日</th><th>在職</th><th>健保</th><th>厚年</th><th>介護</th><th>雇保</th><th>税区分</th><th class="num">扶養</th><th class="num">住民税</th></tr></thead>
+                <tbody>
+                    @foreach (var s in Model.Staff.Take(MaxRows))
+                    {
+                        <tr>
+                            <td>@s.EmployeeNo</td>
+                            <td>@s.Name<div class="small text-muted">@s.Kana</div></td>
+                            <td>@s.Gender</td>
+                            <td>@s.BirthDate?.ToString("yyyy/MM/dd")</td>
+                            <td class="small">@s.Category</td>
+                            <td>@s.HireDate?.ToString("yyyy/MM/dd")</td>
+                            <td>@(s.Retired ? $"退職 {s.RetireDate:yyyy/MM/dd}" : "在職")</td>
+                            <td>@(s.HealthInsured ? $"{s.HealthGrade}等級" : "-")</td>
+                            <td>@(s.PensionInsured ? $"{s.PensionGrade}等級" : "-")</td>
+                            <td>@(s.CareInsured ? "対象" : "-")</td>
+                            <td>@(s.EmploymentInsured ? "加入" : "-")</td>
+                            <td>@s.TaxCategory</td>
+                            <td class="num">@s.Dependents</td>
+                            <td class="num">@Fmt.Yen(s.ResidentTax)</td>
                         </tr>
                     }
                 </tbody>
@@ -60,29 +100,30 @@
     </div>
 }
 
-@if (Model.Staff.Count > 0)
+@if (Model.Payroll.Count > 0)
 {
     <div class="panel mt-3">
-        <div class="panel-title"><h2>スタッフ情報（@Model.Staff.Count 件）</h2></div>
-        <div class="table-wrap">
+        <div class="panel-title"><h2>給与計算書（@Model.Payroll.Count 件@(Model.Payroll.Count > MaxRows ? $"、先頭{MaxRows}件を表示" : "")）</h2></div>
+        <div class="table-wrap" style="max-height: 480px">
             <table class="table table-app table-sm">
-                <thead><tr><th>スタッフ番号</th><th>氏名</th><th>フリガナ</th><th>性別</th><th>生年月日</th><th>拠点</th><th>雇用区分</th><th>入社日</th><th class="num">時給</th><th class="num">通勤手当日額</th><th class="num">住民税月額</th><th class="num">扶養家族人数</th></tr></thead>
+                <thead><tr><th class="num">行</th><th>ｽﾀｯﾌ番号</th><th>ｽﾀｯﾌ氏名</th><th>ｽﾀｯﾌ区分</th><th class="num">出勤日数</th><th class="num">基本時間</th><th class="num">普通残時間</th><th class="num">深夜時間</th><th class="num">総支給額</th><th class="num">総控除額</th><th class="num">差引支給額</th><th>支払日</th></tr></thead>
                 <tbody>
-                    @foreach (var s in Model.Staff)
+                    @foreach (var p in Model.Payroll.Take(MaxRows))
                     {
+                        var v = p.Values;
                         <tr>
-                            <td>@s.EmployeeNo</td>
-                            <td>@s.Name</td>
-                            <td>@s.Kana</td>
-                            <td>@s.Gender</td>
-                            <td>@s.BirthDate?.ToString("yyyy/MM/dd")</td>
-                            <td>@s.Site</td>
-                            <td>@s.EmploymentType</td>
-                            <td>@s.HireDate.ToString("yyyy/MM/dd")</td>
-                            <td class="num">@Fmt.Yen(s.HourlyWage)</td>
-                            <td class="num">@Fmt.Yen(s.CommuteAllowancePerDay)</td>
-                            <td class="num">@Fmt.Yen(s.ResidentTax)</td>
-                            <td class="num">@s.Dependents</td>
+                            <td class="num">@p.LineNo</td>
+                            <td>@p.EmployeeNo</td>
+                            <td>@p.Name</td>
+                            <td class="small">@v.GetValueOrDefault("ｽﾀｯﾌ区分")</td>
+                            <td class="num">@v.GetValueOrDefault("出勤日数")</td>
+                            <td class="num">@v.GetValueOrDefault("基本時間")</td>
+                            <td class="num">@v.GetValueOrDefault("普通残時間")</td>
+                            <td class="num">@v.GetValueOrDefault("深夜時間")</td>
+                            <td class="num">@v.GetValueOrDefault("総支給額")</td>
+                            <td class="num">@v.GetValueOrDefault("総控除額")</td>
+                            <td class="num">@v.GetValueOrDefault("差引支給額")</td>
+                            <td>@p.PayDate.ToString("yyyy/MM/dd")</td>
                         </tr>
                     }
                 </tbody>
