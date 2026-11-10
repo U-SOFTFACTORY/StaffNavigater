@@ -189,6 +189,15 @@ namespace StaffNavi.Services
             return ledger;
         }
 
+        /// <summary>1日分の支給見込額（交通費を除く）。前払い可能額の計算に使う。単価の掛け方は試算（Estimate）と同じ</summary>
+        public static long DayPay(DayCalc c, decimal wage, LaborSettings settings) => Floor(
+            c.BasicMinutes / 60m * wage
+            + c.OvertimeMinutes / 60m * wage * settings.OvertimeRate
+            + c.NightMinutes / 60m * wage * (1 + settings.NightRate)
+            + c.NightOvertimeMinutes / 60m * wage * (settings.OvertimeRate + settings.NightRate)
+            + c.HolidayMinutes / 60m * wage * settings.HolidayRate
+            + c.PaidLeaveMinutes / 60m * wage);
+
         private static bool IsNight(int minute)
         {
             var t = minute % Day;

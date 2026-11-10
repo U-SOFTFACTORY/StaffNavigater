@@ -1,0 +1,79 @@
+@page
+@model StaffNavi.Pages.App.RequestModel
+@{
+    ViewData["Title"] = "前払い申請";
+    ViewData["Tab"] = "request";
+    var s = Model.Status;
+    var cfg = Model.Settings;
+    var today = AdvanceService.TodayOf(Clock.Now);
+    var scheduleText = Model.Schedule == today ? $"本日（{Model.Schedule.Month}/{Model.Schedule.Day}）中" : $"{Model.Schedule.Month}/{Model.Schedule.Day}（{Fmt.Weekday(Model.Schedule)}）";
+    long[] presets = [5000, 10000, 20000];
+}
+
+<h1 class="m-title">前払いを申請する</h1>
+
+<section class="m-card text-center">
+    <div class="m-muted small">今すぐ受け取れる金額</div>
+    <div class="m-big">¥@Fmt.Yen(s.Available)</div>
+</section>
+
+@if (!s.CanRequest)
+{
+    <section class="m-card m-info warn">@Icons.Svg("alert", 20)<div>@s.BlockReason</div></section>
+}
+else
+{
+    <form method="post" class="m-card" id="request-form">
+        @if (Model.Error != null)
+        {
+            <div class="alert alert-danger py-2 small">@Model.Error</div>
+        }
+        <label class="form-label fw-bold" for="amount">申請する金額</label>
+        <div class="m-amount-input">
+            <span>¥</span>
+            <input id="amount" asp-for="Amount" type="number" inputmode="numeric" min="@cfg.MinAmount" max="@s.Available" step="@cfg.Unit" />
+        </div>
+        <div class="m-chips">
+            @foreach (var p in presets.Where(p => p <= s.Available))
+            {
+                <button type="button" class="m-chip" data-amount="@p">@Fmt.Yen(p)円</button>
+            }
+            <button type="button" class="m-chip" data-amount="@s.Available">上限まで</button>
+        </div>
+        <div class="m-muted small mt-1">@Fmt.Yen(cfg.MinAmount)円以上、@Fmt.Yen(cfg.Unit)円単位</div>
+
+        <dl class="m-summary">
+            <div><dt>振込手数料@(cfg.FeePaidByStaff ? "" : "（会社負担）")</dt><dd>@(cfg.FeePaidByStaff ? $"−¥{Fmt.Yen(cfg.Fee)}" : "¥0")</dd></div>
+            <div class="total"><dt>お振込額</dt><dd>¥<span id="transfer"></span></dd></div>
+            <div><dt>振込先</dt><dd>@s.Bank.Masked</dd></div>
+            <div><dt>振込予定</dt><dd>@scheduleText</dd></div>
+            <div><dt>給料からの差引</dt><dd>@s.PayDate.Month/@s.PayDate.Day 支給分で ¥<span id="deduct"></span></dd></div>
+        </dl>
+        <p class="m-muted small" id="approval-note"></p>
+        <button class="m-btn" type="submit">@Icons.Svg("zap", 18) この内容で申請する</button>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var input = document.getElementById('amount');
+            if (!input) return;
+            var fee = @(cfg.FeePaidByStaff ? cfg.Fee : 0);
+            var auto = @cfg.AutoApproveLimit;
+            function update() {
+                var amount = parseInt(input.value, 10) || 0;
+                document.getElementById('transfer').textContent = Math.max(0, amount - fee).toLocaleString('ja-JP');
+                document.getElementById('deduct').textContent = amount.toLocaleString('ja-JP');
+                document.getElementById('approval-note').textContent = amount > auto
+                    ? '※ ' + auto.toLocaleString('ja-JP') + '円を超える申請は、担当者の承認後にお振込みします。'
+                    : '※ ' + auto.toLocaleString('ja-JP') + '円以下の申請はすぐに承認されます。';
+            }
+            document.querySelectorAll('[data-amount]').forEach(function (b) {
+                b.addEventListener('click', function () { input.value = b.getAttribute('data-amount'); update(); });
+            });
+            input.addEventListener('input', update);
+            update();
+        })();
+    </script>
+}

@@ -1,0 +1,103 @@
+@page
+@model StaffNavi.Pages.Advance.ServiceModel
+@{
+    ViewData["Title"] = "サービス運営";
+    ViewData["Nav"] = "advance";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">前払い管理</h1>
+        <div class="page-sub">前払いの仕組みを、他社にもサービスとして提供する場合の運営画面のイメージです</div>
+    </div>
+</div>
+
+<partial name="_AdvanceTabs" model="@("service")" />
+
+<div class="note-box mb-3">@Icons.Svg("help", 18)<div>前払いの原資は各導入企業（スタッフの雇用主）の資金です。運営者は申請の受付・勤務実績にもとづく審査・振込データの作成を提供し、<strong>月額基本料＋振込手数料</strong>を収入とします（運営者がお金を貸し出す仕組みではありません）。他の導入企業の数値は架空の想定値です。</div></div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon blue">@Icons.Svg("building", 28)</span>
+            <div>
+                <div class="kpi-label">導入企業</div>
+                <div class="kpi-value">@Model.Tenants.Count<small>社</small></div>
+                <div class="kpi-note">登録スタッフ @Fmt.Yen(Model.TotalStaff) 名</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon green">@Icons.Svg("users", 28)</span>
+            <div>
+                <div class="kpi-label">今月の利用スタッフ</div>
+                <div class="kpi-value">@Fmt.Yen(Model.TotalUsers)<small>名</small></div>
+                <div class="kpi-note">利用率 @(Model.TotalStaff == 0 ? 0 : Model.TotalUsers * 100 / Model.TotalStaff)%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon orange">@Icons.Svg("wallet", 28)</span>
+            <div>
+                <div class="kpi-label">今月の前払い額（全社）</div>
+                <div class="kpi-value">@Fmt.Yen(Model.TotalAmount / 10000)<small>万円</small></div>
+                <div class="kpi-note">@Fmt.Yen(Model.TotalRequests) 件</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon red">@Icons.Svg("trend", 28)</span>
+            <div>
+                <div class="kpi-label">今月の運営収入（試算）</div>
+                <div class="kpi-value">@Fmt.Yen(Model.Revenue)<small>円</small></div>
+                <div class="kpi-note">基本料 @Fmt.Yen(ServiceModel.BaseFee)円×@Model.Tenants.Count 社＋手数料 @Fmt.Yen(Model.FeePerRequest)円×@Fmt.Yen(Model.TotalRequests)件</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>導入企業</h2></div>
+    <div class="table-wrap">
+        <table class="table table-app">
+            <thead><tr><th>企業名</th><th>業種</th><th>利用開始</th><th class="num">登録スタッフ</th><th class="num">今月の利用</th><th class="num">利用率</th><th class="num">申請件数</th><th class="num">前払い額</th><th class="num">運営収入</th></tr></thead>
+            <tbody>
+                @foreach (var t in Model.Tenants)
+                {
+                    <tr class="@(t.IsSelf ? "table-primary" : "")">
+                        <td class="fw-bold">@t.Name @(t.IsSelf ? Html.Raw("<span class=\"pill pill-blue ms-1\">デモ中</span>") : Html.Raw("<span class=\"small text-muted\">（架空）</span>"))</td>
+                        <td>@t.Industry</td>
+                        <td>@t.Since</td>
+                        <td class="num">@Fmt.Yen(t.Staff)</td>
+                        <td class="num">@Fmt.Yen(t.Users)</td>
+                        <td class="num">@(t.Staff == 0 ? 0 : t.Users * 100 / t.Staff)%</td>
+                        <td class="num">@Fmt.Yen(t.Requests)</td>
+                        <td class="num">@Fmt.Yen(t.Amount)</td>
+                        <td class="num fw-bold">@Fmt.Yen(ServiceModel.BaseFee + t.Requests * Model.FeePerRequest)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="small text-muted mt-2">「デモ中」の企業は、このデモ環境の実際の申請データ（今月分）です。料金体系（基本料・手数料）は検討用の仮の値です。</div>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>サービスの仕組み</h2></div>
+    <div class="flow flow-compact">
+        <div class="flow-box">@Icons.Svg("building", 22)<strong>導入企業</strong><span>前払いの条件を設定（上限%・手数料・承認）</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("calendar", 22)<strong>勤怠データ連携</strong><span>スタッフナビゲーター等のCSV／API</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("phone", 22)<strong>スタッフが申請</strong><span>スマホから24時間</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box master">@Icons.Svg("shield", 22)<strong>自動審査</strong><span>勤務実績から上限を計算</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("bank", 22)<strong>振込</strong><span>全銀データ／銀行API</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("ledger", 22)<strong>給与から差引</strong><span>賃金台帳に自動反映</span></div>
+    </div>
+</div>

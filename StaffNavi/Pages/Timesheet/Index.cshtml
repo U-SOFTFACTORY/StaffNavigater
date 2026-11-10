@@ -159,9 +159,9 @@
                         <table class="table table-app table-sm timesheet-table">
                             <thead>
                                 <tr>
-                                    <th>日付</th><th>曜日</th><th>所定</th><th>区分</th><th>出欠</th><th>始業</th><th>終業</th>
+                                    <th></th><th>日付</th><th>曜日</th><th>所定</th><th>区分</th><th>出欠</th><th>始業</th><th>終業</th>
                                     <th class="num">休憩時</th><th class="num">有給時</th><th class="num">基本</th><th class="num">普通残</th><th class="num">深夜</th><th class="num">深夜残</th><th class="num">休出</th><th class="num">合計</th>
-                                    <th>状態</th><th></th>
+                                    <th>状態</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -180,6 +180,17 @@
                                     var breakNow = d.Calc.WorkMinutes > 0 ? H(e!.BreakMinutes) : "";
                                     var breakWas = orig?.Kind.HasTimes() == true && orig.Start != null && orig.End != null ? H(orig.BreakMinutes) : "";
                                     <tr id="o@(o.OrderNo)-d@(d.Date.Day)" class="@rowClass">
+                                        <td class="text-nowrap">
+                                            <button type="button" class="btn btn-sm @(d.Warnings.Count > 0 ? "btn-primary" : e == null ? "btn-link text-muted p-0" : "btn-outline-secondary")"
+                                                    data-bs-toggle="modal" data-bs-target="#correctModal"
+                                                    data-order="@o.OrderNo" data-order-name="@o.Name" data-date="@d.Date.ToString("yyyy-MM-dd")" data-label="@Fmt.Day(d.Date)"
+                                                    data-kind="@(e?.Kind ?? DayKind.Work)" data-start="@(startNow == "" && e == null ? Fmt.Clock(o.ShiftStart) : startNow)"
+                                                    data-end="@(endNow == "" && e == null ? Fmt.Clock(o.ShiftEnd) : endNow)"
+                                                    data-break="@(e?.Kind.HasTimes() == true ? e.BreakMinutes : 60)"
+                                                    data-current="@(e?.Describe() ?? "データなし")" data-original="@(orig?.Describe() ?? "データなし")">
+                                                @Icons.Svg("edit", 14) @(e == null ? "追加" : "補正")
+                                            </button>
+                                        </td>
                                         <td class="text-nowrap">@d.Date.ToString("MM/dd")</td>
                                         <td>@Fmt.Weekday(d.Date)</td>
                                         <td class="text-muted">@d.Calendar</td>
@@ -205,22 +216,12 @@
                                                 <span class="pill pill-orange" title="@d.Correction!.Reason（@d.Correction.CorrectedBy @Fmt.DateTime(d.Correction.CorrectedAt)）">@Icons.Svg("history", 12) 補正済み</span>
                                             }
                                         </td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn btn-sm @(d.Warnings.Count > 0 ? "btn-primary" : e == null ? "btn-link text-muted p-0" : "btn-outline-secondary")"
-                                                    data-bs-toggle="modal" data-bs-target="#correctModal"
-                                                    data-order="@o.OrderNo" data-order-name="@o.Name" data-date="@d.Date.ToString("yyyy-MM-dd")" data-label="@Fmt.Day(d.Date)"
-                                                    data-kind="@(e?.Kind ?? DayKind.Work)" data-start="@(startNow == "" && e == null ? Fmt.Clock(o.ShiftStart) : startNow)"
-                                                    data-end="@(endNow == "" && e == null ? Fmt.Clock(o.ShiftEnd) : endNow)"
-                                                    data-break="@(e?.Kind.HasTimes() == true ? e.BreakMinutes : 60)"
-                                                    data-current="@(e?.Describe() ?? "データなし")" data-original="@(orig?.Describe() ?? "データなし")">
-                                                @Icons.Svg("edit", 14) @(e == null ? "追加" : "補正")
-                                            </button>
-                                        </td>
                                     </tr>
                                 }
                             </tbody>
                             <tfoot>
                                 <tr class="fw-bold">
+                                    <td></td>
                                     <td colspan="4">合計</td>
                                     <td>@(ss.WorkDays + ss.HolidayWorkDays)日</td>
                                     <td></td><td></td>
@@ -232,7 +233,7 @@
                                     <td class="num">@H(ss.NightOvertimeMinutes)</td>
                                     <td class="num">@H(ss.HolidayMinutes)</td>
                                     <td class="num">@H(ss.TotalMinutes)</td>
-                                    <td colspan="2"></td>
+                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -288,6 +289,10 @@
             <form class="modal-content" method="post" asp-page-handler="Correct">
                 <input type="hidden" name="month" value="@view.Month" />
                 <input type="hidden" name="emp" value="@current.Staff.EmployeeNo" />
+                @* 補正後も表示条件（就業先・絞込・検索）を保持する *@
+                <input type="hidden" name="site" value="@Model.Site" />
+                <input type="hidden" name="filter" value="@Model.Filter" />
+                <input type="hidden" name="q" value="@Model.Q" />
                 <input type="hidden" name="order" />
                 <input type="hidden" name="date" />
                 <div class="modal-header">

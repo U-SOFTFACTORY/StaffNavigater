@@ -1,0 +1,42 @@
+@{
+    var tab = ViewData["Tab"] as string;
+}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#17325a" />
+    <title>@ViewData["Title"] - GS Pay 給与前払い</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/app.css" asp-append-version="true" />
+</head>
+<body class="m-body">
+    <div class="m-shell">
+        <div class="m-demo">デモ環境：表示されているのは架空のスタッフ・金額です</div>
+        <header class="m-header">
+            <span class="m-logo">@Icons.Svg("drop", 20)</span>
+            <span class="m-brand">GS Pay<small>給与前払い</small></span>
+            @if (tab != null)
+            {
+                <form method="post" asp-page="/App/Logout" class="ms-auto">
+                    <button class="m-icon-btn" type="submit" aria-label="ログアウト">@Icons.Svg("logout", 20)</button>
+                </form>
+            }
+        </header>
+        <main class="m-main">
+            @RenderBody()
+        </main>
+        @if (tab != null)
+        {
+            <nav class="m-tabbar">
+                <a class="@(tab == "home" ? "active" : "")" asp-page="/App/Index">@Icons.Svg("home", 22)<span>ホーム</span></a>
+                <a class="@(tab == "request" ? "active" : "")" asp-page="/App/Request">@Icons.Svg("wallet", 22)<span>前払い申請</span></a>
+                <a class="@(tab == "history" ? "active" : "")" asp-page="/App/History">@Icons.Svg("history", 22)<span>履歴</span></a>
+            </nav>
+        }
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

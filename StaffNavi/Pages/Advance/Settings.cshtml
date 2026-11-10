@@ -1,0 +1,76 @@
+@page
+@model StaffNavi.Pages.Advance.SettingsModel
+@{
+    ViewData["Title"] = "前払いの条件";
+    ViewData["Nav"] = "advance";
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">前払い管理</h1>
+        <div class="page-sub">前払いの条件は導入企業ごとに設定できます。変更はスタッフ用アプリにすぐに反映されます</div>
+    </div>
+</div>
+
+<partial name="_AdvanceTabs" model="@("settings")" />
+
+<form method="post" class="panel">
+    <div class="panel-title"><h2>前払いの条件</h2></div>
+    <div class="row g-4">
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="LimitPercent">前払いの上限（働いた分に対する割合）</label>
+            <div class="input-group"><input class="form-control" asp-for="LimitPercent" type="number" min="10" max="100" /><span class="input-group-text">%</span></div>
+            <div class="form-text">働いた分（時給・割増から計算した見込額）のうち、前払いできる割合。税金・社会保険料の控除分を残すため 50～80% が一般的です。</div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="Input.MinAmount">1回の最低申請額</label>
+            <div class="input-group"><input class="form-control" asp-for="Input.MinAmount" type="number" min="1000" step="1000" /><span class="input-group-text">円</span></div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="Input.Unit">申請単位</label>
+            <div class="input-group"><input class="form-control" asp-for="Input.Unit" type="number" min="1" /><span class="input-group-text">円</span></div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="Input.MaxRequestsPerMonth">1か月の申請回数の上限</label>
+            <div class="input-group"><input class="form-control" asp-for="Input.MaxRequestsPerMonth" type="number" min="1" max="31" /><span class="input-group-text">回</span></div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="Input.Fee">振込手数料（1回・税込）</label>
+            <div class="input-group"><input class="form-control" asp-for="Input.Fee" type="number" min="0" /><span class="input-group-text">円</span></div>
+            <div class="form-check mt-2">
+                <input class="form-check-input" asp-for="Input.FeePaidByStaff" />
+                <label class="form-check-label" asp-for="Input.FeePaidByStaff">スタッフが負担する（申請額から差し引いて振込）</label>
+            </div>
+            <div class="form-text">会社負担にすると、福利厚生として求人・定着のアピールになります。</div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="Input.AutoApproveLimit">自動承認する金額</label>
+            <div class="input-group"><span class="input-group-text">1回</span><input class="form-control" asp-for="Input.AutoApproveLimit" type="number" min="0" step="1000" /><span class="input-group-text">円以下</span></div>
+            <div class="form-text">上限内の申請は勤務実績にもとづいて自動で審査するため、担当者の承認は不要です。超える申請だけ承認します。</div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <label class="form-label fw-bold" asp-for="Input.CutoffHour">当日振込の締め時刻</label>
+            <div class="input-group"><input class="form-control" asp-for="Input.CutoffHour" type="number" min="0" max="23" /><span class="input-group-text">時</span></div>
+            <div class="form-text">締め時刻より後・土日の申請は翌営業日の振込になります。</div>
+        </div>
+    </div>
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary px-4" type="submit">@Icons.Svg("check", 16) 保存</button>
+        <a class="btn btn-outline-secondary" asp-page="/Advance/Index">戻る</a>
+    </div>
+</form>
+
+<div class="panel">
+    <div class="panel-title"><h2>前払い可能額の計算方法</h2></div>
+    <div class="flow flow-compact">
+        <div class="flow-box">@Icons.Svg("calendar", 22)<strong>日々の勤怠</strong><span>スタッフナビゲーターのタイムシート（前日までの勤務）</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("clock", 22)<strong>時間区分の計算</strong><span>基本・残業・深夜（勤務表と同じ計算）</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("coin", 22)<strong>働いた分</strong><span>受注ごとの時給×時間＋割増</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box master">@Icons.Svg("wallet", 22)<strong>前払い可能額</strong><span>働いた分×上限% − 申請済みの額</span></div>
+        <div class="flow-arrow">@Icons.Svg("arrow-right", 20)</div>
+        <div class="flow-box">@Icons.Svg("ledger", 22)<strong>給与から差引</strong><span>賃金台帳の「速払金」に自動で反映</span></div>
+    </div>
+</div>

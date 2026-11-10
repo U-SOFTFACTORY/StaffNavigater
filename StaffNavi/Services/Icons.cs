@@ -36,7 +36,15 @@ namespace StaffNavi.Services
             ["shield"] = "<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z\"/><path d=\"m9 12 2 2 4-4\"/>",
             ["lock"] = "<rect x=\"4\" y=\"11\" width=\"16\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>",
             ["undo"] = "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h11a5 5 0 0 1 0 10h-3\"/>",
-            ["drop"] = "<path fill=\"currentColor\" stroke=\"none\" d=\"M12 2.5S5 10.2 5 14.5a7 7 0 0 0 14 0C19 10.2 12 2.5 12 2.5z\"/>",
+            ["wallet"] = "<path d=\"M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3\"/><path d=\"M3 7h16a2 2 0 0 1 2 2v3h-5a2 2 0 0 0 0 4h5\"/><path d=\"M16 14h.01\"/>",
+            ["zap"] = "<path d=\"M13 2 4 14h7l-1 8 9-12h-7z\"/>",
+            ["phone"] = "<rect x=\"6\" y=\"2\" width=\"12\" height=\"20\" rx=\"2\"/><path d=\"M11 18h2\"/>",
+            ["bank"] = "<path d=\"M3 10 12 4l9 6\"/><path d=\"M5 10v8M9.5 10v8M14.5 10v8M19 10v8\"/><path d=\"M3 21h18\"/>",
+            ["trend"] = "<path d=\"m3 17 6-6 4 4 8-8\"/><path d=\"M15 7h6v6\"/>",
+            ["building"] = "<rect x=\"4\" y=\"3\" width=\"16\" height=\"18\" rx=\"1\"/><path d=\"M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3\"/>",
+            ["send"] = "<path d=\"m22 2-11 11\"/><path d=\"m22 2-7 20-4-9-9-4z\"/>",
+            ["coin"] = "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9 8l3 4 3-4M12 12v5M9 13h6M9 15.5h6\"/>",
+            ["drop"] ="<path fill=\"currentColor\" stroke=\"none\" d=\"M12 2.5S5 10.2 5 14.5a7 7 0 0 0 14 0C19 10.2 12 2.5 12 2.5z\"/>",
         };
 
         public static IHtmlContent Svg(string name, int size = 18, string? css = null) =>

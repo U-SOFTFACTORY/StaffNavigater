@@ -1,0 +1,97 @@
+@page
+@model StaffNavi.Pages.Advance.IndexModel
+@{
+    ViewData["Title"] = "前払い管理";
+    ViewData["Nav"] = "advance";
+    var cfg = Model.Dashboard.Settings;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">前払い管理</h1>
+        <div class="page-sub">スタッフの給与前払い（GS Pay）の申請状況。勤務表のデータから前払いできる額を自動で計算します</div>
+    </div>
+    <div class="text-muted small"><span class="live-dot"></span>リアルタイム更新中</div>
+</div>
+
+<partial name="_AdvanceTabs" model="@("index")" />
+
+<div class="row g-3">
+    <div class="col-xl-9 order-2 order-xl-1">
+        <div id="advance-live" data-version="@Model.Dashboard.Version">
+            <partial name="_AdvanceLive" model="Model.Dashboard" />
+        </div>
+    </div>
+    <div class="col-xl-3 order-1 order-xl-2">
+        <div class="panel qr-panel">
+            <div class="panel-title"><h2>スタッフ用アプリ</h2></div>
+            <div class="qr-box">@Html.Raw(Model.QrSvg)</div>
+            <p class="small mb-2 text-center">スマホのカメラで読み取って、<br /><strong>前払いの申請をお試しください</strong></p>
+            <div class="small text-muted text-center text-break"><a href="@Model.AppUrl" target="_blank" rel="noopener">@Model.AppUrl</a></div>
+            <div class="small text-muted text-center mt-1">一覧からスタッフを選ぶか、スタッフ番号＋暗証番号 1234</div>
+        </div>
+        <div class="panel">
+            <div class="panel-title"><h2>前払いの条件</h2><a class="more" asp-page="/Advance/Settings">変更</a></div>
+            <dl class="adv-terms mb-0">
+                <div><dt>前払いの上限</dt><dd>働いた分の @((int)(cfg.LimitRate * 100))%</dd></div>
+                <div><dt>1回の申請</dt><dd>@Fmt.Yen(cfg.MinAmount)円以上・@Fmt.Yen(cfg.Unit)円単位</dd></div>
+                <div><dt>申請回数</dt><dd>月 @cfg.MaxRequestsPerMonth 回まで</dd></div>
+                <div><dt>振込手数料</dt><dd>@Fmt.Yen(cfg.Fee)円（@(cfg.FeePaidByStaff ? "スタッフ負担" : "会社負担")）</dd></div>
+                <div><dt>自動承認</dt><dd>@Fmt.Yen(cfg.AutoApproveLimit)円以下</dd></div>
+                <div><dt>当日振込</dt><dd>@cfg.CutoffHour:00 までの承認分</dd></div>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<div class="adv-toasts" id="adv-toasts" aria-live="polite"></div>
+
+@section Scripts {
+    <script>
+        // 申請の追加・状態の変更を3秒ごとに確認し、変わったら集計と一覧を更新する（新しい申請は通知して強調表示）
+        (function () {
+            var live = document.getElementById('advance-live');
+            var version = live.getAttribute('data-version');
+            var known = new Set(Array.from(live.querySelectorAll('tr[data-id]')).map(function (tr) { return tr.getAttribute('data-id'); }));
+            var busy = false;
+
+            function toast(name, amount) {
+                var el = document.createElement('div');
+                el.className = 'adv-toast';
+                el.innerHTML = '<strong></strong><span></span>';
+                el.querySelector('strong').textContent = '新しい前払い申請';
+                el.querySelector('span').textContent = name + ' さん　' + amount + '円';
+                document.getElementById('adv-toasts').appendChild(el);
+                setTimeout(function () { el.classList.add('hide'); }, 6000);
+                setTimeout(function () { el.remove(); }, 6600);
+            }
+
+            async function check() {
+                if (busy || document.hidden) return;
+                busy = true;
+                try {
+                    var res = await fetch('?handler=Version', { cache: 'no-store' });
+                    var data = await res.json();
+                    if (data.version !== version) {
+                        var html = await (await fetch('?handler=Live', { cache: 'no-store' })).text();
+                        live.innerHTML = html;
+                        version = data.version;
+                        live.querySelectorAll('tr[data-id]').forEach(function (tr) {
+                            var id = tr.getAttribute('data-id');
+                            if (!known.has(id)) {
+                                known.add(id);
+                                tr.classList.add('row-new');
+                                toast(tr.getAttribute('data-name'), tr.getAttribute('data-amount'));
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // 通信エラーは次回に再試行する
+                } finally {
+                    busy = false;
+                }
+            }
+            setInterval(check, 3000);
+        })();
+    </script>
+}

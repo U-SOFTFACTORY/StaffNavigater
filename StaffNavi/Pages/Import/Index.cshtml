@@ -76,7 +76,7 @@
                         <td>@b.Encoding</td>
                         <td>@b.ImportedBy</td>
                         <td>
-                            if (Model.EffectiveIds.Contains(b.Id)) { <span class="pill pill-green">使用中</span> }
+                            @if (Model.EffectiveIds.Contains(b.Id)) { <span class="pill pill-green">使用中</span> }
                             else { <span class="pill pill-gray">新しい取込あり</span> }
                         </td>
                         <td class="text-end"><a class="btn btn-sm btn-outline-secondary" asp-page="/Import/Detail" asp-route-id="@b.Id">詳細</a></td>

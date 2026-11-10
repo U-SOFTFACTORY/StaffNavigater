@@ -1,0 +1,39 @@
+@page
+@model StaffNavi.Pages.App.HistoryModel
+@{
+    ViewData["Title"] = "履歴";
+    ViewData["Tab"] = "history";
+}
+
+<h1 class="m-title">前払いの履歴</h1>
+
+@if (Model.Requests.Count == 0)
+{
+    <section class="m-card"><p class="m-muted small mb-0">前払いの履歴はまだありません。</p></section>
+}
+@foreach (var month in Model.Requests.GroupBy(r => r.WorkMonth))
+{
+    var active = month.Where(r => r.Status.IsActive()).ToList();
+    <section class="m-card">
+        <div class="m-card-head">
+            <h2 class="m-card-title">@Fmt.Month(month.Key)の勤務分</h2>
+            <span class="m-muted small">合計 ¥@Fmt.Yen(active.Sum(r => r.Amount))／@active.Count 回</span>
+        </div>
+        <ul class="m-history">
+            @foreach (var r in month)
+            {
+                <li>
+                    <span>
+                        <strong>¥@Fmt.Yen(r.Amount)</strong>
+                        <small>@r.RequestedAt.ToString("M/d HH:mm") 申請@(r.Status == AdvanceStatus.Transferred && r.TransferredAt != null ? $"・{r.TransferredAt:M/d} 振込" : r.Status == AdvanceStatus.Approved ? $"・{r.ScheduledDate:M/d} 振込予定" : "")</small>
+                        @if (r.RejectReason != null)
+                        {
+                            <small class="text-danger">理由：@r.RejectReason</small>
+                        }
+                    </span>
+                    <span class="pill @r.Status.Pill()">@r.Status.Label()</span>
+                </li>
+            }
+        </ul>
+    </section>
+}

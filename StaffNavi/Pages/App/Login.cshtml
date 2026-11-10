@@ -1,0 +1,46 @@
+@page
+@model StaffNavi.Pages.App.LoginModel
+@{
+    ViewData["Title"] = "ログイン";
+}
+
+<div class="m-login-hero">
+    <div class="m-login-icon">@Icons.Svg("wallet", 34)</div>
+    <h1>働いた分を、<br />必要なときに。</h1>
+    <p>給料日を待たずに、今月働いた分の一部を受け取れます。</p>
+</div>
+
+<section class="m-card">
+    <h2 class="m-card-title">デモ用：スタッフを選んでログイン</h2>
+    <p class="m-muted small mb-2">お好きなスタッフを選んでお試しください（すべて架空のスタッフです）。</p>
+    <div class="m-pick-list">
+        @foreach (var s in Model.Picks)
+        {
+            <form method="post" asp-page-handler="Pick" asp-route-no="@s.Staff.EmployeeNo">
+                <button type="submit" class="m-pick">
+                    <span class="m-avatar">@s.Staff.Name[..1]</span>
+                    <span class="m-pick-text">
+                        <strong>@s.Staff.Name</strong>
+                        <span>@s.MainWorkplace</span>
+                    </span>
+                    <span class="m-pick-amount">¥@Fmt.Yen(s.Available)<small>受取可能</small></span>
+                </button>
+            </form>
+        }
+    </div>
+</section>
+
+<section class="m-card">
+    <h2 class="m-card-title">スタッフ番号でログイン</h2>
+    @if (Model.Error != null)
+    {
+        <div class="alert alert-danger py-2 small">@Model.Error</div>
+    }
+    <form method="post">
+        <label class="form-label small mb-1" for="no">スタッフ番号</label>
+        <input id="no" class="form-control form-control-lg mb-2" asp-for="EmployeeNo" inputmode="numeric" autocomplete="username" placeholder="例：2003105" />
+        <label class="form-label small mb-1" for="pin">暗証番号（デモ：1234）</label>
+        <input id="pin" class="form-control form-control-lg mb-3" asp-for="Pin" type="password" inputmode="numeric" autocomplete="current-password" />
+        <button class="m-btn" type="submit">ログイン</button>
+    </form>
+</section>

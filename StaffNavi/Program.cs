@@ -17,6 +17,7 @@ builder.Services.AddSingleton<DataStore>();
 builder.Services.AddSingleton<LaborRepository>();
 builder.Services.AddSingleton<LaborService>();
 builder.Services.AddSingleton<CsvImportService>();
+builder.Services.AddSingleton<AdvanceService>();
 builder.Services.AddSingleton<DemoSeeder>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -27,6 +28,14 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "StaffNavi.Demo";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+    })
+    // スタッフ用アプリ（前払い申請）のログイン。管理画面とは別のCookieにする
+    .AddCookie(StaffNavi.Pages.App.AppPageModel.Scheme, options =>
+    {
+        options.LoginPath = "/App/Login";
+        options.Cookie.Name = "StaffNavi.App";
+        options.ExpireTimeSpan = TimeSpan.FromHours(12);
+        options.SlidingExpiration = true;
     });
 builder.Services.AddAuthorization();
 // 日本語をHTML文字参照に変換せずそのまま出力する
@@ -36,6 +45,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
     options.Conventions.AllowAnonymousToPage("/Error");
+    // スタッフ用アプリは管理画面のログインを使わず、AppPageModel でスタッフのログインを確認する
+    options.Conventions.AllowAnonymousToFolder("/App");
 });
 
 var app = builder.Build();

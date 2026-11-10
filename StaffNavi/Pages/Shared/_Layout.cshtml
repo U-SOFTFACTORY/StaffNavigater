@@ -1,11 +1,13 @@
 @using Microsoft.Extensions.Options
 @using System.Security.Claims
 @inject LaborService Labor
+@inject AdvanceService Advance
 @inject IOptionsMonitor<DemoOptions> Demo
 @{
     var nav = ViewData["Nav"] as string ?? "";
     var latest = Labor.GetMonth(null);
     var alertCount = latest?.WarningCount ?? 0;
+    var advancePending = Advance.PendingCount();
     var expiresAt = Demo.CurrentValue.ExpiresAt;
     var role = User.FindFirstValue(ClaimTypes.Role);
     (string Key, string Page, string Icon, string Label)[] menu =
@@ -16,6 +18,7 @@
         ("ledger", "/Ledger/Index", "ledger", "賃金台帳"),
         ("corrections", "/Corrections/Index", "history", "補正履歴"),
         ("output", "/Output/Index", "pdf", "提出資料出力"),
+        ("advance", "/Advance/Index", "wallet", "前払い"),
         ("logs", "/Logs/Index", "list", "操作ログ"),
     ];
 }
@@ -48,6 +51,10 @@
                         @if (item.Key == "timesheet" && alertCount > 0)
                         {
                             <span class="side-badge">@alertCount</span>
+                        }
+                        @if (item.Key == "advance" && advancePending > 0)
+                        {
+                            <span class="side-badge">@advancePending</span>
                         }
                     </a>
                 }

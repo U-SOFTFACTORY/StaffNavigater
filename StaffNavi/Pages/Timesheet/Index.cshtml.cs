@@ -38,7 +38,7 @@ namespace StaffNavi.Pages.Timesheet
             if (Month == null || Emp == null || !DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
             {
                 TempData["Error"] = "補正対象が正しくありません。";
-                return RedirectToPage(new { Month, Emp });
+                return RedirectToPage(new { Month, Emp, Site, Filter, Q });
             }
             int? ParseClock(string? text) => Fmt.TryParseClock(text, out var m) ? m : null;
             var startMinutes = ParseClock(start);
@@ -58,7 +58,8 @@ namespace StaffNavi.Pages.Timesheet
             {
                 TempData["Message"] = $"{Fmt.Day(day)} の勤務データを補正しました。補正内容は補正履歴に記録されています。";
             }
-            return Redirect(Url.Page("/Timesheet/Index", new { Month, Emp }) + $"#o{order}-d{day.Day}");
+            // 補正前の表示条件（就業先・要確認のみ等・検索）を引き継いで戻る
+            return Redirect(Url.Page("/Timesheet/Index", new { Month, Emp, Site, Filter, Q }) + $"#o{order}-d{day.Day}");
         }
 
         public IActionResult OnGetCsv()

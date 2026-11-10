@@ -329,6 +329,20 @@ namespace StaffNavi.Services
                     }
                 }
             }
+
+            // 前払い（速払金）：就業月の前払い額を、その月の給与（翌月支給）の賃金台帳に載せる
+            var advances = repo.GetAdvances().Where(a => a.Status.IsActive())
+                .GroupBy(a => (a.EmployeeNo, a.WorkMonth)).ToDictionary(g => g.Key, g => g.Sum(a => a.Amount));
+            foreach (var (emp, row) in book)
+            {
+                for (var i = 0; i < 12; i++)
+                {
+                    if (row[i] != null && advances.TryGetValue((emp, $"{new DateOnly(year, i + 1, 1).AddMonths(-1):yyyy-MM}"), out var amount))
+                    {
+                        row[i]!.AdvancePayment = amount;
+                    }
+                }
+            }
             return book;
         }
 

@@ -40,6 +40,16 @@ namespace StaffNavi.Services
         /// <summary>0:00からの分を“時:分”で表す（スタッフナビゲーターと同じく、日をまたぐ時刻は 32:00 のように表す）</summary>
         public static string Clock(int? minutes) => minutes is { } m ? $"{m / 60}:{m % 60:00}" : "";
 
+        /// <summary>スタッフ向けの時刻表示（日をまたぐ時刻は「翌8:00」のように表す）</summary>
+        public static string ClockJa(int? minutes) => minutes switch
+        {
+            null => "--:--",
+            >= 24 * 60 => $"翌{(minutes.Value - 24 * 60) / 60}:{minutes.Value % 60:00}",
+            _ => $"{minutes.Value / 60}:{minutes.Value % 60:00}",
+        };
+
+        public static string DayJa(DateOnly date) => $"{date.Month}月{date.Day}日（{Weekday(date)}）";
+
         /// <summary>“時:分”（例：6:26、32:00）を0:00からの分にする</summary>
         public static bool TryParseClock(string? text, out int minutes)
         {

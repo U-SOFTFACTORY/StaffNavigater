@@ -1,0 +1,6 @@
+@model string
+<ul class="nav nav-tabs mb-3 advance-tabs">
+    <li class="nav-item"><a class="nav-link @(Model == "index" ? "active" : "")" asp-page="/Advance/Index">@Icons.Svg("wallet", 16) 前払い状況</a></li>
+    <li class="nav-item"><a class="nav-link @(Model == "settings" ? "active" : "")" asp-page="/Advance/Settings">@Icons.Svg("settings", 16) 前払いの条件</a></li>
+    <li class="nav-item"><a class="nav-link @(Model == "service" ? "active" : "")" asp-page="/Advance/Service">@Icons.Svg("building", 16) サービス運営</a></li>
+</ul>

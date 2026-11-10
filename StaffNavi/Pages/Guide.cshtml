@@ -12,6 +12,13 @@
         ("ledger", "給与計算書を取り込み、賃金台帳を作る", $"スタッフナビゲーターの給与計算書CSV（例：{DemoSeeder.SamplePayrollFileName}）を取り込むと、賃金台帳（先方のExcelと同じ様式・1年分）が全員分できあがります。", "/Ledger/Index", "賃金台帳を開く"),
         ("printer", "提出用資料を出力する", "勤務表（出勤簿）・賃金台帳・勤務実績集計表を、印刷またはPDFで出力します。補正箇所には※印を付けられます。", "/Output/Index", "提出資料出力を開く"),
     ];
+    (string Icon, string Title, string Body, string Page, string Link)[] advanceSteps =
+    [
+        ("phone", "スマホで申請する", "前払い管理画面のQRコードをスマホで読み取り、スタッフを選んでログインします。前日までの勤務から計算した「今すぐ受け取れる金額」の範囲で申請できます。", "/App/Login", "スタッフ用アプリを開く"),
+        ("zap", "自動承認・リアルタイム表示", "設定額以下の申請は自動で承認され、管理画面に通知とともに表示されます。設定額を超える申請は担当者が承認します。", "/Advance/Index", "前払い管理を開く"),
+        ("bank", "振込データを作る", "本日振込分を全銀フォーマットの振込データとして出力します（銀行APIとの連携も可能）。", "/Advance/Index", "前払い管理を開く"),
+        ("ledger", "給与から差し引く", "前払いした額は、賃金台帳の「速払金」に自動で反映されます。", "/Ledger/Index", "賃金台帳を開く"),
+    ];
 }
 
 <div class="page-head">
@@ -37,6 +44,22 @@
                     <span class="tile-head"><span class="pill pill-blue">STEP @(i + 1)</span> @Icons.Svg(step.Icon, 20, "blue") @step.Title</span>
                     <span class="small my-2">@step.Body</span>
                     <a class="small mt-auto" asp-page="@step.Page">@step.Link →</a>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>前払い（給与前払い）の流れ</h2></div>
+    <div class="row g-3">
+        @foreach (var (icon, title, body, url, link) in advanceSteps)
+        {
+            <div class="col-md-6 col-xl-3">
+                <div class="tile h-100">
+                    <span class="tile-head">@Icons.Svg(icon, 20, "blue") @title</span>
+                    <span class="small my-2">@body</span>
+                    <a class="small mt-auto" href="@url">@link →</a>
                 </div>
             </div>
         }

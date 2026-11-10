@@ -7,7 +7,7 @@ namespace StaffNavi.Services
     /// デモ用ダミーデータの生成。先方から提供された実データの「形式・構造」（受注ごとのタイムシート、SSの勤務帯、掛け持ち、
     /// 夜勤の日またぎ、スタッフ区分、社会保険の等級など）をまねた架空のデータで、実在の人物・企業とは関係ありません。
     /// </summary>
-    public class DemoSeeder(LaborRepository repo, CsvImportService importer, LaborService labor)
+    public class DemoSeeder(LaborRepository repo, CsvImportService importer, LaborService labor, AdvanceService advance)
     {
         public const string AdminName = "山田 太郎";
         public const string StaffUserName = "鈴木 花子";
@@ -168,7 +168,7 @@ namespace StaffNavi.Services
             foreach (var order in orders)
             {
                 // 横浜港北SSは10月から始まった受注
-                if (SampleOrderNos.Contains(order.OrderNo) && (year, month) != (LatestYear, LatestMonth))
+                if (SampleOrderNos.Contains(order.OrderNo) && monthStart < new DateOnly(LatestYear, LatestMonth, 1))
                 {
                     continue;
                 }
@@ -445,6 +445,10 @@ namespace StaffNavi.Services
 
             repo.AddLog(AdminName, "資料出力", "勤務表（出勤簿）を出力しました（2026年9月、全就業先、32名）", At(2026, 10, 22, 16, 2));
             repo.AddLog(AdminName, "資料出力", "賃金台帳を出力しました（2026年、全就業先、32名）", At(2026, 10, 22, 16, 5));
+
+            // 前払い（9月・10月・当月の申請。当月分は現在時刻までの申請と、承認待ち2件）
+            repo.SaveAdvanceSettings(new AdvanceSettings());
+            advance.SeedHistory(Clock.Now);
             repo.MarkInitialized();
         }
 

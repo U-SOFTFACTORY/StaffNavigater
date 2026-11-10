@@ -1,0 +1,149 @@
+@model AdvanceDashboard
+@{
+    var d = Model;
+    var max = Math.Max(1, d.Daily.Max());
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon blue">@Icons.Svg("wallet", 28)</span>
+            <div>
+                <div class="kpi-label">今月の前払い額</div>
+                <div class="kpi-value">@Fmt.Yen(d.MonthTotal)<small>円</small></div>
+                <div class="kpi-note">@(int.Parse(d.WorkMonth[5..]))月勤務分／先月 @Fmt.Yen(d.PrevMonthTotal)円</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon green">@Icons.Svg("users", 28)</span>
+            <div>
+                <div class="kpi-label">利用スタッフ</div>
+                <div class="kpi-value">@d.UserCount<small>名</small></div>
+                <div class="kpi-note">利用率 @d.UsageRate%（@d.EligibleCount 名中）</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon orange">@Icons.Svg("clock", 28)</span>
+            <div>
+                <div class="kpi-label">承認待ち</div>
+                <div class="kpi-value">@d.PendingCount<small>件</small></div>
+                <div class="kpi-note">@Fmt.Yen(d.Settings.AutoApproveLimit)円以下は自動承認</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xxl-3">
+        <div class="kpi">
+            <span class="kpi-icon red">@Icons.Svg("send", 28)</span>
+            <div>
+                <div class="kpi-label">本日の振込予定</div>
+                <div class="kpi-value">@Fmt.Yen(d.TodayTransfer)<small>円</small></div>
+                <div class="kpi-note">@d.TodayCount 件@(d.LaterCount > 0 ? $"／翌営業日以降 {d.LaterCount}件 {Fmt.Yen(d.LaterTransfer)}円" : "")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-xl-7">
+        <div class="panel h-100">
+            <div class="panel-title"><h2>日別の前払い額（@Fmt.Month(d.WorkMonth)）</h2><span class="small text-muted">手数料収入 @Fmt.Yen(d.FeeTotal)円</span></div>
+            <div class="adv-chart">
+                @for (var i = 0; i < d.Daily.Length; i++)
+                {
+                    var day = i + 1;
+                    var h = (int)(d.Daily[i] * 100 / max);
+                    <div class="adv-bar @(day == d.Today.Day ? "today" : day > d.Today.Day ? "future" : "")" title="@d.WorkMonth[5..]/@day：@Fmt.Yen(d.Daily[i])円">
+                        <span style="height:@(Math.Max(h, d.Daily[i] > 0 ? 3 : 0))%"></span>
+                        <small>@(day == 1 || day % 5 == 0 || day == d.Today.Day ? day.ToString() : "")</small>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="panel h-100">
+            <div class="panel-title"><h2>振込</h2></div>
+            <div class="d-flex align-items-end justify-content-between gap-2 flex-wrap">
+                <div>
+                    <div class="small text-muted">本日振込分（締め @d.Settings.CutoffHour:00 までの承認分）</div>
+                    <div class="fs-3 fw-bold">@Fmt.Yen(d.TodayTransfer)<small class="fs-6 ms-1">円／@d.TodayCount 件</small></div>
+                </div>
+                <form method="post" asp-page-handler="Transfer" data-confirm="本日振込分の振込データ（全銀フォーマット）を作成し、振込済みにします。よろしいですか？">
+                    <button class="btn btn-primary" type="submit" disabled="@(d.TodayCount == 0)">@Icons.Svg("download", 16) 振込データ作成（全銀）</button>
+                </form>
+            </div>
+            <hr />
+            <div class="small text-muted mb-1">資金準備の目安（今月勤務のスタッフ全員が上限まで申請した場合）</div>
+            <div class="fs-5 fw-bold">あと @Fmt.Yen(d.RemainingCapacity)<small class="fs-6 ms-1">円</small></div>
+            <div class="small text-muted">前払いの原資は会社の資金です。勤務実績から上限（働いた分の@((int)(d.Settings.LimitRate * 100))%）を自動で計算するため、払い過ぎを防げます。</div>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>申請一覧（@Fmt.Month(d.WorkMonth)勤務分）</h2><span class="small text-muted">新しい申請は自動で表示されます</span></div>
+    <div class="table-wrap" style="max-height: 520px">
+        <table class="table table-app">
+            <thead>
+                <tr><th>申請日時</th><th>スタッフ</th><th>就業先</th><th class="num">申請額</th><th class="num">手数料</th><th class="num">振込額</th><th>振込予定</th><th>状態</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in d.Requests.Take(80))
+                {
+                    <tr data-id="@r.Id" data-name="@r.StaffName" data-amount="@Fmt.Yen(r.Amount)" data-status="@r.Status.Label()">
+                        <td class="text-nowrap">@r.RequestedAt.ToString("M/d HH:mm")<div class="small text-muted">@r.Channel</div></td>
+                        <td class="text-nowrap">@r.StaffName<div class="small text-muted">@r.EmployeeNo.PadLeft(8, '0')</div></td>
+                        <td class="small">@r.Workplace</td>
+                        <td class="num fw-bold">@Fmt.Yen(r.Amount)</td>
+                        <td class="num">@Fmt.Yen(r.Fee)</td>
+                        <td class="num">@Fmt.Yen(r.TransferAmount)</td>
+                        <td class="text-nowrap">@(r.Status == AdvanceStatus.Requested || r.Status == AdvanceStatus.Rejected ? "-" : r.ScheduledDate.ToString("M/d"))</td>
+                        <td>
+                            <span class="pill @r.Status.Pill()">@r.Status.Label()</span>
+                            <div class="small text-muted">@(r.AutoApproved ? "自動承認" : r.ApprovedBy)</div>
+                        </td>
+                        <td class="text-nowrap">
+                            @if (r.Status == AdvanceStatus.Requested)
+                            {
+                                <form method="post" asp-page-handler="Approve" asp-route-id="@r.Id" class="d-inline">
+                                    <button class="btn btn-sm btn-primary" type="submit">承認</button>
+                                </form>
+                                <form method="post" asp-page-handler="Reject" asp-route-id="@r.Id" class="d-inline" data-confirm="この申請を却下しますか？（理由：勤務実績の確認が必要なため）">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">却下</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-title"><h2>スタッフ別の前払い可能額</h2><span class="small text-muted">前日までの勤務から自動計算</span></div>
+    <div class="table-wrap" style="max-height: 360px">
+        <table class="table table-app table-sm">
+            <thead><tr><th>スタッフ</th><th>主な就業先</th><th class="num">勤務日数</th><th class="num">働いた分（見込）</th><th class="num">上限</th><th class="num">申請済</th><th class="num">前払い可能額</th><th>状態</th></tr></thead>
+            <tbody>
+                @foreach (var s in d.Staff)
+                {
+                    <tr>
+                        <td class="text-nowrap">@s.Staff.Name <span class="small text-muted">@s.Staff.EmployeeNo.PadLeft(8, '0')</span></td>
+                        <td class="small">@s.MainWorkplace</td>
+                        <td class="num">@s.WorkDays</td>
+                        <td class="num">@Fmt.Yen(s.Earned)</td>
+                        <td class="num">@Fmt.Yen(s.Limit)</td>
+                        <td class="num">@Fmt.Yen(s.Used)</td>
+                        <td class="num fw-bold">@Fmt.Yen(s.Available)</td>
+                        <td class="small">@(s.CanRequest ? "申請可" : s.BlockReason)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

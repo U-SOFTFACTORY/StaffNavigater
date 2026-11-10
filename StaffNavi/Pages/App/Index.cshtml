@@ -1,0 +1,106 @@
+@page
+@model StaffNavi.Pages.App.IndexModel
+@{
+    ViewData["Title"] = "ホーム";
+    ViewData["Tab"] = "home";
+    var s = Model.Status;
+    var today = AdvanceService.TodayOf(Clock.Now);
+    var usedRate = s.Limit == 0 ? 0 : (int)Math.Min(100, s.Used * 100 / s.Limit);
+    var lastDay = s.Days.Count > 0 ? s.Days.Max(d => d.Date) : (DateOnly?)null;
+}
+
+<div class="m-greet">
+    <div>
+        <div class="m-muted small">@Fmt.DayJa(today)</div>
+        <div class="m-name">@s.Staff.Name さん</div>
+    </div>
+    <span class="m-place">@Icons.Svg("drop", 14) @(s.MainWorkplace == "" ? "勤務予定なし" : s.MainWorkplace)</span>
+</div>
+
+<section class="m-hero">
+    <div class="m-hero-label">今すぐ受け取れる金額</div>
+    <div class="m-hero-amount">¥<span data-count="@s.Available">@Fmt.Yen(s.Available)</span></div>
+    <div class="m-hero-sub">
+        @if (lastDay != null)
+        {
+            <span>@(today.Month)月1日〜@(lastDay.Value.Month)月@(lastDay.Value.Day)日に働いた分 ¥@Fmt.Yen(s.Earned) の @((int)(Model.Settings.LimitRate * 100))% まで</span>
+        }
+        else
+        {
+            <span>今月の勤務が確定すると受け取れるようになります</span>
+        }
+    </div>
+    <div class="m-meter"><span style="width:@usedRate%"></span></div>
+    <div class="m-meter-label"><span>受取済・申請中 ¥@Fmt.Yen(s.Used)</span><span>上限 ¥@Fmt.Yen(s.Limit)</span></div>
+    @if (s.CanRequest)
+    {
+        <a class="m-btn m-btn-light mt-3" asp-page="/App/Request">@Icons.Svg("zap", 18) 前払いを申請する</a>
+    }
+    else
+    {
+        <div class="m-hero-block">@s.BlockReason</div>
+    }
+</section>
+
+<div class="m-stats">
+    <div><span>今月の勤務</span><strong>@s.WorkDays<small>日</small></strong></div>
+    <div><span>勤務時間</span><strong>@(s.WorkMinutes / 60)<small>時間@(s.WorkMinutes % 60 > 0 ? $"{s.WorkMinutes % 60}分" : "")</small></strong></div>
+    <div><span>給料日</span><strong>@s.PayDate.Month/@s.PayDate.Day<small>(@Fmt.Weekday(s.PayDate))</small></strong></div>
+</div>
+
+@if (s.Used > 0)
+{
+    <section class="m-card m-info">
+        @Icons.Svg("ledger", 20)
+        <div>
+            <strong>@(s.PayDate.Month)月@(s.PayDate.Day)日の給料から差し引かれます</strong>
+            <div class="small">今月の前払い（申請中を含む） ¥@Fmt.Yen(s.Used)／@s.RequestCount 回</div>
+        </div>
+    </section>
+}
+
+<section class="m-card">
+    <div class="m-card-head"><h2 class="m-card-title">今月の勤務</h2><span class="m-muted small">前日までの勤務を反映</span></div>
+    @if (s.Days.Count == 0)
+    {
+        <p class="m-muted small mb-0">今月の勤務データはまだありません。</p>
+    }
+    <ul class="m-days">
+        @foreach (var d in s.Days.OrderByDescending(d => d.Date))
+        {
+            <li class="@(d.Pending ? "pending" : "")">
+                <span class="m-day-date @(d.Date.DayOfWeek == DayOfWeek.Sunday ? "sun" : d.Date.DayOfWeek == DayOfWeek.Saturday ? "sat" : "")">@d.Date.Day<small>@Fmt.Weekday(d.Date)</small></span>
+                <span class="m-day-text">
+                    <strong>@d.Workplace <small>@d.ShiftName</small></strong>
+                    @if (d.Kind == DayKind.Work || d.Kind == DayKind.HolidayWork)
+                    {
+                        <span>@Fmt.ClockJa(d.Start) 〜 @Fmt.ClockJa(d.End)@(d.Pending ? "" : $"（{Fmt.Hours(d.Minutes)}）")</span>
+                    }
+                    else
+                    {
+                        <span>@d.Kind.Label()</span>
+                    }
+                </span>
+                <span class="m-day-pay">@(d.Pending ? "打刻確認中" : $"¥{Fmt.Yen(d.Pay)}")</span>
+            </li>
+        }
+    </ul>
+    <p class="m-muted small mt-2 mb-0">※ 金額は時給・深夜/残業割増から計算した見込額です（交通費・税金・社会保険料は給料日に精算）。打刻漏れの日は、勤務時間が確定してから反映されます。</p>
+</section>
+
+@section Scripts {
+    <script>
+        // 金額をカウントアップで表示する
+        document.querySelectorAll('[data-count]').forEach(function (el) {
+            var target = parseInt(el.getAttribute('data-count'), 10) || 0;
+            var start = performance.now();
+            function step(now) {
+                var t = Math.min(1, (now - start) / 900);
+                var eased = 1 - Math.pow(1 - t, 3);
+                el.textContent = Math.round(target * eased).toLocaleString('ja-JP');
+                if (t < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        });
+    </script>
+}

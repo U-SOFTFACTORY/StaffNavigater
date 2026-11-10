@@ -12,9 +12,11 @@ namespace StaffNavi.Services
         private const string SettingsFile = "settings.json";
         private const string OrdersFile = "orders.json";
         private const string VersionFile = "version.json";
+        private const string AdvancesFile = "advances.json";
+        private const string AdvanceSettingsFile = "advance-settings.json";
 
         /// <summary>保存データの形式のバージョン（形式を変えたら上げる。古い形式のデータは起動時に作り直す）</summary>
-        public const int DataVersion = 2;
+        public const int DataVersion = 3;
         private const int MaxLogs = 3000;
 
         public bool IsInitialized => store.Exists(BatchesFile) && store.Read(VersionFile, () => 0) == DataVersion;
@@ -94,6 +96,14 @@ namespace StaffNavi.Services
                 store.Delete($"pending/{token}.json");
             }
         }
+
+        public List<AdvanceRequest> GetAdvances() => store.Read(AdvancesFile, () => new List<AdvanceRequest>());
+
+        public void UpdateAdvances(Action<List<AdvanceRequest>> mutate) => store.Update(AdvancesFile, () => new List<AdvanceRequest>(), mutate);
+
+        public AdvanceSettings GetAdvanceSettings() => store.Read(AdvanceSettingsFile, () => new AdvanceSettings());
+
+        public void SaveAdvanceSettings(AdvanceSettings settings) => store.Write(AdvanceSettingsFile, settings);
 
         public void Clear() => store.Clear();
 
